@@ -6,3 +6,22 @@
 	path = utils
 	url = https://github.com/CarloWood/ai-utils.git
 	branch = master
+[submodule "math"]
+	path = math
+	url = https://github.com/CarloWood/math.git
+	branch = master
+[submodule "cwds"]
+	path = cwds
+	url = https://github.com/CarloWood/cwds.git
+	branch = master
+[submodule "cairowindow"]
+	path = cairowindow
+	url = https://github.com/CarloWood/cairowindow.git
+	branch = master
+[submodule "threadsafe"]
+	path = threadsafe
+	url = https://github.com/CarloWood/threadsafe.git
+	branch = master
+[submodule "src/mpreal"]
+	path = src/mpreal
+	url = https://github.com/advanpix/mpreal.git
