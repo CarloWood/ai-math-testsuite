@@ -21,7 +21,7 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "Please do out-of-source builds.\nCleanup: \"rm -rf CMake CMakeCache.txt CMakeFiles/\"")
 endif ()
 
-find_package(Boost COMPONENTS filesystem)
+find_package(Boost CONFIG COMPONENTS filesystem)
 
 include(AICxxSubmodules)
 add_subdirectory(src)
