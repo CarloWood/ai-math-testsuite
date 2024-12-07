@@ -43,3 +43,6 @@ endif ()
 
 add_executable(small_root small_root.cxx)
 target_link_libraries(small_root AICxx::cairowindow AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} Eigen3::Eigen)
+
+add_executable(convergence_test convergence_test.cxx)
+target_link_libraries(convergence_test AICxx::cairowindow AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY})
