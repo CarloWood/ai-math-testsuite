@@ -11,7 +11,7 @@
 
 constexpr int number_of_cubics = 1000000;
 
-int get_roots(math::CubicPolynomial& cubic, std::array<double, 3>& roots_out, int& iterations)
+int get_roots(math::CubicPolynomial<double>& cubic, std::array<double, 3>& roots_out, int& iterations)
 {
   DoutEntering(dc::notice, "get_roots() for " << cubic);
 
@@ -23,13 +23,14 @@ int get_roots(math::CubicPolynomial& cubic, std::array<double, 3>& roots_out, in
   auto half_second_derivative = [&](double x){ return coefficients_[2] + 3.0 * coefficients_[3] * x; };
 
   using math::QuadraticPolynomial;
+  using T = double;
   // Include the body of the function.
 # define GETROOTS_ASSIGN_ITERATIONS
 # include "math/CubicPolynomial_get_roots.cpp"
 # undef GETROOTS_ASSIGN_ITERATIONS
 }
 
-void sanity_check(math::CubicPolynomial const& cubic, double const root)
+void sanity_check(math::CubicPolynomial<double> const& cubic, double const root)
 {
   // Course check.
   double fr = cubic(root);
@@ -132,7 +133,7 @@ void sanity_check(math::CubicPolynomial const& cubic, double const root)
   }
 }
 
-void sanity_check(math::CubicPolynomial const& cubic, std::array<double, 3> const& roots, int number_of_roots)
+void sanity_check(math::CubicPolynomial<double> const& cubic, std::array<double, 3> const& roots, int number_of_roots)
 {
   std::array<double, 3> rs = roots;
   if (number_of_roots == 3)
@@ -171,7 +172,7 @@ int main(int argc, char* argv[])
 
   // Generate random cubics.
   std::cout << "Generating random cubic polynomials..." << std::endl;
-  std::vector<math::CubicPolynomial> cubics;
+  std::vector<math::CubicPolynomial<double>> cubics;
   std::uniform_real_distribution<double> dist(-10.0, 10.0);
   for (int i = 0; i < number_of_cubics; ++i)
   {

@@ -6,7 +6,7 @@
 #include "debug.h"
 
 // Helper function to create a quadratic with given roots
-math::QuadraticPolynomial make_quadratic(double root1, double root2)
+math::QuadraticPolynomial<double> make_quadratic(double root1, double root2)
 {
   double sum = -(root1 + root2);
   double product = root1 * root2;
@@ -14,7 +14,7 @@ math::QuadraticPolynomial make_quadratic(double root1, double root2)
 }
 
 // Helper function to create a cubic whose derivative is the given quadratic
-math::CubicPolynomial make_cubic(math::QuadraticPolynomial const& quadratic)
+math::CubicPolynomial<double> make_cubic(math::QuadraticPolynomial<double> const& quadratic)
 {
   return {0.0, quadratic[0], quadratic[1] / 2.0, quadratic[2] / 3.0};
 }
@@ -28,7 +28,7 @@ int signof(double d)
   return 0;
 }
 
-void test_cubic(math::CubicPolynomial const& poly, double root1, double root2, bool left_most_first)
+void test_cubic(math::CubicPolynomial<double> const& poly, double root1, double root2, bool left_most_first)
 {
   std::array<double, 2> extrema;
   int num_extrema = poly.get_extrema(extrema, left_most_first);
@@ -102,7 +102,7 @@ int main()
   {
     Dout(dc::notice, "roots: " << root1 << ", " << root2);
 
-    math::QuadraticPolynomial quadratic = make_quadratic(root1, root2);
+    math::QuadraticPolynomial<double> quadratic = make_quadratic(root1, root2);
     Dout(dc::notice, "quadratic = " << quadratic);
 
     math::CubicPolynomial poly = make_cubic(quadratic);

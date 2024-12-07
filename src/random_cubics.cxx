@@ -22,7 +22,7 @@ bool stop = true;
 
 int get_roots(cairowindow::plot::Plot& plot, boost::intrusive_ptr<cairowindow::Layer>& layer,
     cairowindow::draw::LineStyle& line_style, cairowindow::plot::BezierFitter* plot_fitter,
-    math::CubicPolynomial& cubic, std::array<double, 3>& roots_out,
+    math::CubicPolynomial<double>& cubic, std::array<double, 3>& roots_out,
     // These two are only assigned when CWDEBUG and/or RANDOM_CUBICS_TEST are defined.
     double& initial_guess, int& iterations)
 {
@@ -36,13 +36,14 @@ int get_roots(cairowindow::plot::Plot& plot, boost::intrusive_ptr<cairowindow::L
   auto half_second_derivative = [&](double x){ return 2.0 * coefficients_[2] + 3.0 * coefficients_[3] * x; };
 
   using math::QuadraticPolynomial;
+  using T = double;
   // Include the body of the function.
 # define RANDOM_CUBICS_TEST
 # include "math/CubicPolynomial_get_roots.cpp"
 # undef RANDOM_CUBICS_TEST
 }
 
-int get_roots(math::CubicPolynomial& cubic, std::array<double, 3>& roots_out, int& iterations)
+int get_roots(math::CubicPolynomial<double>& cubic, std::array<double, 3>& roots_out, int& iterations)
 {
   DoutEntering(dc::notice, "get_roots() for " << cubic);
 
@@ -54,6 +55,7 @@ int get_roots(math::CubicPolynomial& cubic, std::array<double, 3>& roots_out, in
   auto half_second_derivative = [&](double x){ return coefficients_[2] + 3.0 * coefficients_[3] * x; };
 
   using math::QuadraticPolynomial;
+  using T = double;
   // Include the body of the function.
 # define GETROOTS_ASSIGN_ITERATIONS
 # include "math/CubicPolynomial_get_roots.cpp"
@@ -114,7 +116,7 @@ int main(int argc, char* argv[])
 
   // Generate random cubics.
   std::cout << "Generating random cubic polynomials..." << std::endl;
-  std::vector<math::CubicPolynomial> cubics;
+  std::vector<math::CubicPolynomial<double>> cubics;
   for (int i = 0; i < number_of_cubics; ++i)
   {
     // Generate the position of the inflection point.
@@ -194,7 +196,7 @@ int main(int argc, char* argv[])
 
     auto diff_lambda = [&](double C0) -> cairowindow::Point
     {
-      math::CubicPolynomial p(C0, -3, 0, 1);
+      math::CubicPolynomial<double> p(C0, -3, 0, 1);
       std::array<double, 3> roots;
       int iterations;
       double initial_guess;
@@ -204,7 +206,7 @@ int main(int argc, char* argv[])
 
     auto rel_err_lambda = [&](double C0) -> cairowindow::Point
     {
-      math::CubicPolynomial p(C0, -3, 0, 1);
+      math::CubicPolynomial<double> p(C0, -3, 0, 1);
       std::array<double, 3> roots;
       int iterations;
       double initial_guess;
@@ -253,7 +255,7 @@ int main(int argc, char* argv[])
 
     auto SC0_lambda = [&](double C0) -> cairowindow::Point
     {
-      math::CubicPolynomial p(C0, -3, 0, 1);
+      math::CubicPolynomial<double> p(C0, -3, 0, 1);
       std::array<double, 3> roots;
       int iterations;
       double initial_guess;
@@ -296,7 +298,7 @@ int main(int argc, char* argv[])
       window.set_send_expose_events(false);
 
       double C0_s = slider_c0.value();
-      math::CubicPolynomial cubic(C0_s, -3, 0, 1);
+      math::CubicPolynomial<double> cubic(C0_s, -3, 0, 1);
 
       plot::BezierFitter plot_bezier_fitter;
 #endif
@@ -313,7 +315,7 @@ int main(int argc, char* argv[])
 
 #if INTERACTIVE
       std::array<double, 3> real_roots;
-      math::CubicPolynomial cubic_real(C0_s, -3, 0, 1);
+      math::CubicPolynomial<double> cubic_real(C0_s, -3, 0, 1);
       get_roots(cubic_real, real_roots, iterations);
       Dout(dc::notice, "Real root found: " << real_roots[0] << "; initial guess: " << initial_guess);
 
