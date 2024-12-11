@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
 
     std::ostringstream title;
     title << cubic;
-    cairowindow::QuickGraph qg(title.str(), "x", "y", {-2.0, 0.0}, {-2.0, 2.0});
+    cairowindow::QuickGraph qg(title.str(), "x", "y", {-10.0, 10.0}, {-10.0, 10.0});
     qg.add_function([&](double x){ return cubic(x); });
 
     std::array<mpreal, 4> coefficients = parse_string<mpreal>(input);
