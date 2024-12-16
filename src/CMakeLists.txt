@@ -49,3 +49,6 @@ target_link_libraries(convergence_test AICxx::cairowindow AICxx::symbolic AICxx:
 
 add_executable(cubic_epsilons cubic_epsilons.cxx)
 target_link_libraries(cubic_epsilons AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY} ${GMP_LIBRARY})
+
+add_executable(newton_epsilons newton_epsilons.cxx)
+target_link_libraries(newton_epsilons AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY} ${GMP_LIBRARY})
