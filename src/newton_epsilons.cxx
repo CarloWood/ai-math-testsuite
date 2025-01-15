@@ -50,7 +50,7 @@ class FA
   }
 
   // Multiply with an expression that can contain ε's.
-  // (z1 + f1)/d1 * (z2 + f2)/d2 = (z1 z2, z1 f2 + f1 * z2)/(d1 d2)     (neglecting f1 * f2).
+  // (z1 + f1)/d1 * (z2 + f2)/d2 = (z1 z2, z1 f2 + f1 z2)/(d1 d2)     (neglecting f1 * f2).
   FA operator*(FA const& fa) const
   {
     return {zero_order_ * fa.zero_order_, zero_order_ * fa.first_order_ + first_order_ * fa.zero_order_,
@@ -117,7 +117,7 @@ class FA
     {
       if (need_plus)
         os << " + ";
-      os << first_order_;
+      os << "\e[33m" << first_order_ << "\e[0m";
     }
     if (need_parens)
       os << ')';
@@ -202,6 +202,17 @@ int main()
 
   FOREACH_VARIABLE(DECLARE_SYMBOL);
 
+  // Construct the accurate cubic f(x_n).
+  auto& f = c0 + c1 * x + c2 * (x^2) + c3 * (x^3);
+  // And its derivative.
+  auto& df = f.derivative(x);
+  // And the accurate g(x_n).
+  auto& g = x - f / df;
+  Dout(dc::notice, "f(x) = " << f);
+  Dout(dc::notice, "f'(x) = " << df);
+  Dout(dc::notice, "g(x) = x - f(x)/f'(x) = " << g);
+
+  // Construct the 1 + ε factors.
   FA e0p1{1, e0};       // 1 + ε₀
   FA e1p1{1, e1};       // 1 + ε₁
   FA e2p1{1, e2};       // ⋮
@@ -213,25 +224,26 @@ int main()
   FA e8p1{1, e8};
   FA e9p1{1, e9};
 
-  // Construct the cubic f(x_n).
+  // Construct the approximation cubic f_a(x_n).
   FA c3x = e5p1 * c3 * x;
   FA c2_plus_c3x = e4p1 * (c2 + c3x);
   FA c2_plus_c3x_x = e3p1 * c2_plus_c3x * x;
   FA c1_plus_c2_plus_c3x_x = e2p1 * (c1 + c2_plus_c3x_x);
   FA c1_plus_c2_plus_c3x_x_x = e1p1 * c1_plus_c2_plus_c3x_x * x;
-  FA f = e0p1 * (c0 + c1_plus_c2_plus_c3x_x_x);
+  FA fa = e0p1 * (c0 + c1_plus_c2_plus_c3x_x_x);
 
-  // Construct the derivative df(x_n).
+  // Construct the derivative dfa(x_n).
   FA three_c3x = e9p1 * (3 * c3 * x);
   FA two_c2_plus_three_c3x = e8p1 * (2 * c2 + three_c3x);
   FA two_c2_plus_three_c3x_x = e7p1 * two_c2_plus_three_c3x * x;
-  FA df = e6p1 * (c1 + two_c2_plus_three_c3x_x);
+  FA dfa = e6p1 * (c1 + two_c2_plus_three_c3x_x);
 
-  FA g = x - f / df;
+  // And ga.
+  FA ga = x - fa / dfa;
 
-  Dout(dc::notice, "f = " << fulldef << f);
-  Dout(dc::notice, "df = " << fulldef << df);
-  Dout(dc::notice, "g = " << fulldef << g);
+  Dout(dc::notice, "fa = " << fa);
+  Dout(dc::notice, "dfa = " << dfa);
+  Dout(dc::notice, "ga = " << ga);
 
   x = 0.1;
   e0 = 0;
@@ -245,35 +257,26 @@ int main()
   e8 = 0;
   e9 = 0;
 
-  c0 = 0;
-  c1 = 0;
-  c2 = 1;
-  c3 = 1;
+  // df^2 =                                   c₁²  + 4c₁c₂x  + 6c₁c₃x² + 4c₂²x² + 12c₂c₃x³ + 9c₃²x⁴
 
-  // This is in the denominator of g.
-  auto& df2 = (c1 + 2 * c2 * x + 3 * c3 * (x^2))^2;
-
-  // g * df^2 =
-  //         -c₀c₁ - 2c₀c₂x - 3c₀c₃x²         + c₁c₂x² + 2c₁c₃x³ + 2c₂²x³ + 7c₂c₃x⁴ + 6c₃²x⁵ +
-  //     ε₀ (-c₀c₁ - 2c₀c₂x - 3c₀c₃x² - c₁²x - 3c₁c₂x² - 4c₁c₃x³ - 2c₂²x³ - 5c₂c₃x⁴ -  3c₃²x⁵) +
-  //     (ε₁ + ε₂)                    (-c₁²x - 3c₁c₂x² - 4c₁c₃x³ - 2c₂²x³ - 5c₂c₃x⁴ -  3c₃²x⁵) +
-  //     (ε₃ + ε₄)                    (      -  c₁c₂x² -  c₁c₃x³ - 2c₂²x³ - 5c₂c₃x⁴ -  3c₃²x⁵) +
-  //     ε₅                           (                -  c₁c₃x³          - 2c₂c₃x⁴ -  3c₃²x⁵) +
-  //     ε₆  (c₀c₁ + 2c₀c₂x + 3c₀c₃x² + c₁²x + 3c₁c₂x² + 4c₁c₃x³ + 2c₂²x³ + 5c₂c₃x⁴ +  3c₃²x⁵) +
-  //     (ε₇ + ε₈)  (2c₀c₂x + 3c₀c₃x²        + 2c₁c₂x² + 3c₁c₃x³ + 2c₂²x³ + 5c₂c₃x⁴ +  3c₃²x⁵) +
-  //     ε₉                  (3c₀c₃x²                  + 3c₁c₃x³          + 3c₂c₃x⁴ +  3c₃²x⁵)
+  // gₐ * df^2 =
+  //               -c₀c₁ - 2c₀c₂x - 3c₀c₃x²        +  c₁c₂x² + 2c₁c₃x³ + 2c₂²x³ +  7c₂c₃x⁴ + 6c₃²x⁵ +
+  //           ε₀ (-c₀c₁ - 2c₀c₂x - 3c₀c₃x² - c₁²x - 3c₁c₂x² - 4c₁c₃x³ - 2c₂²x³ -  5c₂c₃x⁴ - 3c₃²x⁵) +
+  //     (ε₁ + ε₂)(                          -c₁²x - 3c₁c₂x² - 4c₁c₃x³ - 2c₂²x³ -  5c₂c₃x⁴ - 3c₃²x⁵) +
+  //     (ε₃ + ε₄)(                                -  c₁c₂x² -  c₁c₃x³ - 2c₂²x³ -  5c₂c₃x⁴ - 3c₃²x⁵) +
+  //           ε₅ (                                          -  c₁c₃x³          -  2c₂c₃x⁴ - 3c₃²x⁵) +
+  //           ε₆ ( c₀c₁ + 2c₀c₂x + 3c₀c₃x² + c₁²x + 3c₁c₂x² + 4c₁c₃x³ + 2c₂²x³ +  5c₂c₃x⁴ + 3c₃²x⁵) +
+  //     (ε₇ + ε₈)(        2c₀c₂x + 3c₀c₃x²        + 2c₁c₂x² + 3c₁c₃x³ + 2c₂²x³ +  5c₂c₃x⁴ + 3c₃²x⁵) +
+  //           ε₉ (                 3c₀c₃x²                  + 3c₁c₃x³          +  3c₂c₃x⁴ + 3c₃²x⁵)
 
   std::array<int, 7> epsilon_index = { 0, 1, 3, 5, 6, 7, 9 };
 
   // Verify the above expression.
-  auto& g_df2 = (g * df2).expand();
+  auto& ga_df2 = (ga * (df^2)).expand();
 
   // Define the top-row.
-  auto& g_df2_no_epsilons = -c0 * c1 - 2 * c0 * c2 * x - 3 * c0 * c3 * (x^2) +
+  auto& ga_df2_no_epsilons = -c0 * c1 - 2 * c0 * c2 * x - 3 * c0 * c3 * (x^2) +
     c1 * c2 * (x^2) + 2 * c1 * c3 * (x^3) + 2 * (c2^2) * (x^3) + 7 * c2 * c3 * (x^4) + 6 * (c3^2) * (x^5);
-
-  Dout(dc::notice, "g = " << g.expand());
-  Dout(dc::notice, "df2 = " << df.expand());
 
   // The factor of coefficient pairs.
   std::array<std::array<int, 8>, 10> factors = {{
@@ -296,21 +299,21 @@ int main()
     for (int j = i; j <= 3; ++j)
     {
       int dc = i == j ? 2 : 1;  // Derivative correction.
-      double estimate = g_df2.derivative(*variables[i]).derivative(*variables[j]).evaluate();
+      double estimate = ga_df2.derivative(*variables[i]).derivative(*variables[j]).evaluate();
       ASSERT(utils::almost_equal(estimate, dc * factors[col][0] * std::pow(0.1, i + j - 1), 1e-6) ||
           (factors[col][0] == 0 && std::abs(estimate) < 1e-9));
       ++col;
     }
   }
   // Get the part with epsilons.
-  auto& g_df2_epsilon = g_df2 - g_df2_no_epsilons;
+  auto& ga_df2_epsilon = ga_df2 - ga_df2_no_epsilons;
   col = 0;
   for (int i = 0; i <= 3; ++i)
   {
     for (int j = i; j <= 3; ++j)
     {
       int dc = i == j ? 2 : 1;  // Derivative correction.
-      auto& dg_dcidcj = g_df2_epsilon.derivative(*variables[i]).derivative(*variables[j]);
+      auto& dg_dcidcj = ga_df2_epsilon.derivative(*variables[i]).derivative(*variables[j]);
       // Run over the table rows (k = 0 is the second row).
       for (int k = 0; k <= 6; ++k)
       {
