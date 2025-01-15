@@ -52,3 +52,6 @@ target_link_libraries(cubic_epsilons AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LI
 
 add_executable(newton_epsilons newton_epsilons.cxx)
 target_link_libraries(newton_epsilons AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY} ${GMP_LIBRARY})
+
+add_executable(epsilon_sums epsilon_sums.cxx)
+target_link_libraries(epsilon_sums AICxx::cairowindow AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY})
