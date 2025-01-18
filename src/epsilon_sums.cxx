@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 #include <random>
 #include <vector>
 
-constexpr size_t n = 4;                 // Dimension of vectors.
+constexpr size_t n = 6;                 // Dimension of vectors.
 constexpr size_t num_samples = 1000000; // Number of Monte Carlo samples.
 constexpr size_t num_trials = 100;      // Number of different random vectors a to try.
 constexpr double target_length = 1.0;   // Target length for vector a normalization.
@@ -196,17 +196,22 @@ int main()
   std::mt19937 gen(rd());
 
   // For storing statistics across trials
-  std::vector<double> range_sqrt_var_ratio;
+  std::vector<double> range_vs_expected_ratio;
+
+  double const f = 0.866025;
 
   for (size_t trial = 0; trial < num_trials; ++trial)
   {
+#if 1
     // Generate random normalized vector a.
     auto a = generate_random_vector(gen);       // {a₀, a₁, a₂, a₃, a₄, .. }
-
-#if 0
+#elif 0
     std::vector<double> a;
     for (int i = 0; i < n; ++i)
       a.push_back(1.0 / std::sqrt(n));  // a = (1/√n, 1/√n, 1/√n, ...)
+#else
+    std::vector<double> a(n, 0.0);
+    a[0] = 1.0;
 #endif
 
     // Since the length of a is 1, the dot product with the random uniform vector (one sample) will have a variance equal to 1/3.
@@ -219,45 +224,31 @@ int main()
 
     std::cout << "The variance of the samples is: " << calculate_variance(samples) << '\n';
 
-    // Sort samples to find 25th and 75th percentiles.
+    // Sort samples to find the borders that contain a fraction `f` of the samples.
     std::sort(samples.begin(), samples.end());
-    double p25 = samples[num_samples / 4];
-    double p75 = samples[3 * num_samples / 4];
-    // Calculate the empirical range containing 50% of the samples.
-    double empirical_range = p75 - p25;
+    double p_start = samples[0.5 * num_samples * (1 - f)];
+    double p_end = samples[0.5 * num_samples * (1 + f)];
+    // Calculate the empirical range containing `f` of the samples.
+    double empirical_range = p_end - p_start;
 
-    // Store the ratio between the empirical 50% range and the sqrt of the variance (1/3).
-    range_sqrt_var_ratio.push_back(empirical_range * std::sqrt(3.0));
-
-    // Assume one coordinate of a dominates, say a = (1, 0, 0, ...).
-    // Then the variance of the dot product is ||a||²/3 = 1/3.
-    //
-    // aₘ²/3 = n aₖ²/3 → |aₘ| = √n |aₖ|
-    //
-    // while the 50% range ([-b, b]) for both cases become comparible:
-    //
-    // 1. b ≈ (1² + 0² + 0² + ...)/2 = 0.5
-    // and (for large n, where the central limit theorem applies and we add n random variables distributed uniformly in [-1/√n, 1/√n])
-    // 2. b ≈ 1.34898 |1/√n| √(n/3) = 1.34898 (1/√n) √(n/3) = 1.34898 / √3 = 0.7788
-    //
-    // So the ratio between the empirical 50% range and the sqrt of the variance (1/3) should be around 1.5576.
+    range_vs_expected_ratio.push_back(0.5 * empirical_range / f);
 
     // Print results for this trial.
     std::cout << "Trial " << trial + 1 << ":\n";
     std::cout << "  Vector a: ";
     for (double x : a)
       std::cout << std::fixed << std::setprecision(4) << x << " ";
-    std::cout << "; empirical 50% range: " << empirical_range << "\n";
+    std::cout << "; empirical " << (f * 100.0) << "% range: ±" << (0.5 * empirical_range / f) << " * f\n";
   }
 
   // Calculate statistics across all trials.
-  double avg_range = std::accumulate(range_sqrt_var_ratio.begin(), range_sqrt_var_ratio.end(), 0.0) / num_trials;
+  double avg_range = std::accumulate(range_vs_expected_ratio.begin(), range_vs_expected_ratio.end(), 0.0) / num_trials;
   double var_range = 0.0;
-  for (double range : range_sqrt_var_ratio)
+  for (double range : range_vs_expected_ratio)
     var_range += (range - avg_range) * (range - avg_range);
   var_range /= (num_trials - 1);
 
   std::cout << "Summary across " << num_trials << " trials:\n";
-  std::cout << "Average 50% range: " << avg_range << "\n";
-  std::cout << "Standard deviation of range: " << std::sqrt(var_range) << "\n";
+  std::cout << "Average " << (f * 100.0) << "% expected range deviation: " << avg_range << "\n";
+  std::cout << "Standard deviation of expected range deviation: " << std::sqrt(var_range) << "\n";
 }
