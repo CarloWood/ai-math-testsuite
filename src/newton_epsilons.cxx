@@ -1,282 +1,12 @@
 #include "sys.h"
+#include "FloatingPointRoundOffError.h"
 #include "utils/macros.h"
-#include "utils/has_print_on.h"
 #include "utils/almost_equal.h"
-#include "utils/Array.h"
-#include "cairowindow/symbolic/symbolic.h"
-#include <array>
+#include "utils/EnumIterator.h"
 #include <utility>
-#include <algorithm>
 #include "debug.h"
 
-using utils::has_print_on::operator<<;
-
-struct EpsilonIndexCategory { };
-using epsilon_index_type = utils::ArrayIndex<EpsilonIndexCategory>;
-
 constexpr int number_of_epsilons = 21;
-
-class FA
-{
- private:
-  symbolic::Expression const& zero_order_;                                                              // Term without ε's.
-  utils::Array<symbolic::Expression const*, number_of_epsilons, epsilon_index_type> first_order_{};     // Terms with single ε factor(s).
-  symbolic::Expression const& common_denominator_;                                                      // Denominator without ε's.
-
- public:
-  // Construct a FirstOrder object where the zero order is an integer.
-  FA(int zero_order) :
-    zero_order_(symbolic::Constant::realize(zero_order)), common_denominator_(symbolic::Constant::s_cached_one) { }
-
-  // Construct a FirstOrder object from an expressions that is to be multiplied by (1 + ε).
-  FA(symbolic::Expression const& expression, epsilon_index_type epsilon_index,
-      symbolic::Expression const& common_denominator = symbolic::Constant::s_cached_one) :
-    zero_order_(expression), common_denominator_(common_denominator)
-  {
-    first_order_[epsilon_index] = &expression;
-  }
-
-  // Construct a FirstOrder object from an FA object that is to be multiplied by (1 + ε).
-  FA(FA const& fa, epsilon_index_type epsilon_index) :
-    zero_order_(fa.zero_order_), first_order_(fa.first_order_), common_denominator_(fa.common_denominator_)
-  {
-    // Don't use an already used epsilon_index.
-    ASSERT(first_order_[epsilon_index] == nullptr);
-    first_order_[epsilon_index] = &fa.zero_order_;
-  }
-
- private:
-  FA(symbolic::Expression const& zero_order, symbolic::Expression const& common_denominator) :
-    zero_order_(zero_order), common_denominator_(common_denominator) { }
-
-  FA(symbolic::Expression const& zero_order,
-      utils::Array<symbolic::Expression const*, number_of_epsilons, epsilon_index_type> const& first_order,
-      symbolic::Expression const& common_denominator) :
-    zero_order_(zero_order), first_order_(first_order), common_denominator_(common_denominator) { }
-
- public:
-  // Multiply with an expression that does NOT contain ε's.
-  FA operator*(symbolic::Expression const& arg) const
-  {
-    FA result{zero_order_ * arg, common_denominator_};
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        result.first_order_[i] = &(*first_order_[i] * arg);
-    return result;
-  }
-
-  symbolic::Expression const& expand(utils::Array<symbolic::Symbol const*, number_of_epsilons, epsilon_index_type> const& epsilon) const
-  {
-    symbolic::Expression const* result = &zero_order_;
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        result = &(*result + *first_order_[i] * *epsilon[i]);
-    return *result / common_denominator_;
-  }
-
-  // Add an expression that does NOT contain ε's.
-  FA operator+(symbolic::Expression const& arg) const
-  {
-    return {zero_order_ + arg * common_denominator_, first_order_, common_denominator_};
-  }
-
-  // Subtract an expression that does NOT contain ε's.
-  FA operator-(symbolic::Expression const& arg) const
-  {
-    return {zero_order_ - arg * common_denominator_, first_order_, common_denominator_};
-  }
-
-  // Multiply with an expression that can contain ε's.
-  // (z1 + f1)/d1 * (z2 + f2)/d2 = (z1 z2, z1 f2 + f1 z2)/(d1 d2)     (neglecting f1 * f2).
-  FA operator*(FA const& fa) const
-  {
-    FA result{zero_order_ * fa.zero_order_, common_denominator_ * fa.common_denominator_};
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        result.first_order_[i] = &(*first_order_[i] * fa.zero_order_);
-    for (epsilon_index_type i = fa.first_order_.ibegin(); i != fa.first_order_.iend(); ++i)
-      if (fa.first_order_[i] != nullptr)
-      {
-        if (result.first_order_[i] == nullptr)
-          result.first_order_[i] = &(zero_order_ * *fa.first_order_[i]);
-        else
-          result.first_order_[i] = &(*result.first_order_[i] + zero_order_ * *fa.first_order_[i]);
-      }
-    return result;
-  }
-
-  // Divide by an expression that can contain ε's.
-  // ((z1 + f1)/d1) / ((z2 + f2)/d2) = ((z1 + f1) / (z2 + f2))/(d1 / d2) =
-  //                                 = ((z1 + f1)(z2 - f2) / ((z2 + f2)(z2 - f2)))/(d1 / d2) =
-  //                                 = (z1 z2 - z1 f2 + f1 z2) / (z2^2 d1 / d2) =
-  //                                 = (z1 z2 d2 - z1 f2 d2 + f1 z2 d2) / (z2^2 d1)
-  // Note, here
-  //   z1 = zero_order_
-  //   f1 = first_order_
-  //   d1 = common_denominator_
-  //   z2 = fa.zero_order_
-  //   f2 = fa.first_order_
-  //   d2 = fa.common_denominator_
-  //
-  // If f2 only depends on a single ε, then it will be equal to z2 * ε2, so that the result will be
-  //  (z1 z2 d2 - z1 z2⋅ε2 d2 + f1 z2 d2) / (z2^2 d1) = (z1 d2 - z1 d2⋅ε2 + f1 d2) / (z2 d1)
-  //
-  FA operator/(FA const& fa) const
-  {
-    // Check if fa.first_order_ only contains a single non-zero pointer.
-    bool f2_is_single_epsilon = std::ranges::count_if(fa.first_order_, [](auto p) { return p != nullptr; }) == 1;
-    if (f2_is_single_epsilon)
-    {
-      FA result{zero_order_ * fa.common_denominator_, fa.zero_order_ * common_denominator_};
-      for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-        if (first_order_[i] != nullptr)
-          result.first_order_[i] = &(*first_order_[i] * fa.common_denominator_);
-      for (epsilon_index_type i = fa.first_order_.ibegin(); i != fa.first_order_.iend(); ++i)
-        if (fa.first_order_[i] != nullptr)
-        {
-          ASSERT(fa.first_order_[i]->equals(fa.zero_order_));
-          if (result.first_order_[i] == nullptr)
-            result.first_order_[i] = &(-zero_order_ * fa.common_denominator_);
-          else
-            result.first_order_[i] = &(*result.first_order_[i] - zero_order_ * fa.common_denominator_);
-        }
-      return result;
-    }
-    else
-    {
-      FA result{zero_order_ * fa.zero_order_ * fa.common_denominator_, (fa.zero_order_^2) * common_denominator_};
-      for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-        if (first_order_[i] != nullptr)
-          result.first_order_[i] = &(*first_order_[i] * fa.zero_order_ * fa.common_denominator_);
-      for (epsilon_index_type i = fa.first_order_.ibegin(); i != fa.first_order_.iend(); ++i)
-        if (fa.first_order_[i] != nullptr)
-        {
-          if (result.first_order_[i] == nullptr)
-            result.first_order_[i] = &(-zero_order_ * *fa.first_order_[i] * fa.common_denominator_);
-          else
-            result.first_order_[i] = &(*result.first_order_[i] - zero_order_ * *fa.first_order_[i] * fa.common_denominator_);
-        }
-      return result;
-    }
-  }
-
-  // Add an expression that can contain ε's.
-  // (z1 + f1)/d1 + (z2 + f2)/d2 = (z1 d2 + f1 d2)/(d1 d2) + (z2 d1 + f2 d1)/(d1 d2) =
-  //                             = ((z1 d2 + z2 d1) + (f1 d2 + f2 d1))/(d1 d2)
-  FA operator+(FA const& fa) const
-  {
-    FA result{zero_order_ * fa.common_denominator_ + fa.zero_order_ * common_denominator_,
-      common_denominator_ * fa.common_denominator_};
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        result.first_order_[i] = &(*first_order_[i] * fa.common_denominator_);
-    for (epsilon_index_type i = fa.first_order_.ibegin(); i != fa.first_order_.iend(); ++i)
-      if (fa.first_order_[i] != nullptr)
-      {
-        if (result.first_order_[i] == nullptr)
-          result.first_order_[i] = &(*fa.first_order_[i] * common_denominator_);
-        else
-          result.first_order_[i] = &(*result.first_order_[i] + *fa.first_order_[i] * common_denominator_);
-      }
-
-    return result;
-  }
-
-  FA operator-(FA const& fa) const
-  {
-    return *this + (-fa);
-  }
-
-  // The operations are commutative.
-  friend FA operator*(symbolic::Expression const& arg, FA const& fa)
-  {
-    return fa * arg;
-  }
-
-  // Negation.
-  FA operator-() const
-  {
-    FA result{-zero_order_, common_denominator_};
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        result.first_order_[i] = &(-*first_order_[i]);
-    return result;
-  }
-
-  friend FA operator+(symbolic::Expression const& arg, FA const& fa)
-  {
-    return fa + arg;
-  }
-
-  friend FA operator-(symbolic::Expression const& arg, FA const& fa)
-  {
-    return -fa + arg;
-  }
-
-  symbolic::Expression const& zero_order() const { return zero_order_ / common_denominator_; }
-
-  void print_on(std::ostream& os) const
-  {
-    static utils::Array<char const*, number_of_epsilons, epsilon_index_type> subscript = {
-      "₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉", "₁₀", "₁₁", "₁₂", "₁₃", "₁₄", "₁₅", "₁₆", "₁₇", "₁₈", "₁₉", "₂₀"
-    };
-    bool need_parens = false;
-    bool need_plus = false;
-    bool first_order_is_zero = true;
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-    {
-      if (first_order_[i] != nullptr && !symbolic::Constant::is_zero(*first_order_[i]))
-      {
-        first_order_is_zero = false;
-        break;
-      }
-    }
-    if (!symbolic::Constant::is_zero(zero_order_))
-    {
-      if (!first_order_is_zero)
-      {
-        need_parens = !symbolic::Constant::is_one(common_denominator_);
-        if (need_parens)
-          os << '(';
-      }
-      os << zero_order_;
-      need_plus = true;
-    }
-    if (!first_order_is_zero)
-    {
-      char const* prefix = need_plus ? " + " : "";
-      os << "\e[33m";
-      for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      {
-        if (first_order_[i] != nullptr && !symbolic::Constant::is_zero(*first_order_[i]))
-          os << prefix << '(' << *first_order_[i] << ")⋅ε" << subscript[i];
-        prefix = " + ";
-      }
-      os << "\e[0m";
-    }
-    if (need_parens)
-      os << ')';
-    if (!symbolic::Constant::is_one(common_denominator_))
-    {
-      os << " / ";
-      need_parens = symbolic::needs_parens(common_denominator_.precedence(), symbolic::Precedence::ratio, symbolic::after);
-      if (need_parens)
-        os << '(';
-      os << common_denominator_;
-      if (need_parens)
-        os << ')';
-    }
-  }
-
-  symbolic::Expression const& error() const
-  {
-    symbolic::Expression const* sum_of_squared_first_order_elements = &symbolic::Constant::s_cached_zero;
-    for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
-      if (first_order_[i] != nullptr)
-        sum_of_squared_first_order_elements = &(*sum_of_squared_first_order_elements + ((*first_order_[i])^2));
-    return *sum_of_squared_first_order_elements / (common_denominator_^2);
-  }
-};
 
 #define FOREACH_VARIABLE(X) \
   X(c0) \
@@ -344,7 +74,7 @@ void print(symbolic::Expression const& expression)
   std::cout << expression << std::endl;
 }
 
-void print(FA const& fa)
+void print(FloatingPointRoundOffError<number_of_epsilons> const& fa)
 {
   std::cout << fa << std::endl;
 }
@@ -353,48 +83,41 @@ int main()
 {
   Debug(NAMESPACE_DEBUG::init());
 
-  for (int v = 0; v < number_of_variables; ++v)
+  using FA = FloatingPointRoundOffError<number_of_epsilons>;
+
+  for (Variables variable : utils::EnumIterator<Variables, Variables::c0, Variables::x>())
+//  for (int v = 0; v < number_of_variables; ++v)
   {
-    Variables variable = static_cast<Variables>(v);
-    variables[v] = &symbolic::Symbol::realize(to_string(variable));
+//    Variables variable = static_cast<Variables>(v);
+    variables[variable] = &symbolic::Symbol::realize(to_string(variable));
   }
 
   FOREACH_VARIABLE(DECLARE_SYMBOL);
 
-  // Construct the accurate cubic f(x_n).
-  auto& f = c0 + c1 * x + c2 * (x^2) + c3 * (x^3);
-  // And its derivative.
-  auto& df = f.derivative(x);
-  // And the accurate g(x_n).
-  auto& g = x - f / df;
-  Dout(dc::notice, "f(x) = " << f);
-  Dout(dc::notice, "f'(x) = " << df);
-  Dout(dc::notice, "g(x) = x - f(x)/f'(x) = " << g);
+  FA::epsilon_index_type e0i(0);
+  FA::epsilon_index_type e1i(1);
+  FA::epsilon_index_type e2i(2);
+  FA::epsilon_index_type e3i(3);
+  FA::epsilon_index_type e4i(4);
+  FA::epsilon_index_type e5i(5);
+  FA::epsilon_index_type e6i(6);
+  FA::epsilon_index_type e7i(7);
+  FA::epsilon_index_type e8i(8);
+  FA::epsilon_index_type e9i(9);
+  FA::epsilon_index_type e10i(10);
+  FA::epsilon_index_type e11i(11);
+  FA::epsilon_index_type e12i(12);
+  FA::epsilon_index_type e13i(13);
+  FA::epsilon_index_type e14i(14);
+  FA::epsilon_index_type e15i(15);
+  FA::epsilon_index_type e16i(16);
+  FA::epsilon_index_type e17i(17);
+  FA::epsilon_index_type e18i(18);
+  FA::epsilon_index_type e19i(19);
+  FA::epsilon_index_type e20i(20);
 
-  epsilon_index_type e0i(0);
-  epsilon_index_type e1i(1);
-  epsilon_index_type e2i(2);
-  epsilon_index_type e3i(3);
-  epsilon_index_type e4i(4);
-  epsilon_index_type e5i(5);
-  epsilon_index_type e6i(6);
-  epsilon_index_type e7i(7);
-  epsilon_index_type e8i(8);
-  epsilon_index_type e9i(9);
-  epsilon_index_type e10i(10);
-  epsilon_index_type e11i(11);
-  epsilon_index_type e12i(12);
-  epsilon_index_type e13i(13);
-  epsilon_index_type e14i(14);
-  epsilon_index_type e15i(15);
-  epsilon_index_type e16i(16);
-  epsilon_index_type e17i(17);
-  epsilon_index_type e18i(18);
-  epsilon_index_type e19i(19);
-  epsilon_index_type e20i(20);
-
-  utils::Array<symbolic::Symbol const*, number_of_epsilons, epsilon_index_type> epsilons;
-  for (epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
+  utils::Array<symbolic::Symbol const*, number_of_epsilons, FA::epsilon_index_type> epsilons;
+  for (FA::epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
     epsilons[i] = variables[to_index(Variables::e0) + i.get_value()];
 
   // Construct the approximation cubic f_a(x_n).
@@ -420,7 +143,7 @@ int main()
   Dout(dc::notice, "ga = " << ga);
 
   x = 0.1;
-  for (epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
+  for (FA::epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
     *variables[to_index(Variables::e0) + i.get_value()] = 0.0;
 
   // df^2 =                                   c₁²  + 4c₁c₂x  + 6c₁c₃x² + 4c₂²x² + 12c₂c₃x³ + 9c₃²x⁴
@@ -437,7 +160,14 @@ int main()
 
   std::array<int, 7> epsilon_index = { 0, 1, 3, 5, 6, 7, 9 };
 
+  //------------------------------------------------------------------------------------------------
   // Verify the above expression.
+
+  // Construct the accurate cubic f(x_n).
+  auto& f = c0 + c1 * x + c2 * (x^2) + c3 * (x^3);
+  // And its derivative.
+  auto& df = f.derivative(x);
+
   auto& ga_df2 = (ga * (df^2)).expand(epsilons);
 
   // Define the top-row.
