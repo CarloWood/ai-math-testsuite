@@ -1,0 +1,23 @@
+Language: Cpp
+IndentWidth: 2
+UseTab: false
+ColumnLimit: 120
+AlignAfterOpenBracket: Align
+AllowShortFunctionsOnASingleLine: None
+BraceWrapping:
+  AfterControlStatement: true
+  AfterFunction: true
+  BeforeElse: true
+  BeforeWhile: true
+IndentCaseLabels: false
+BreakBeforeBraces: Custom
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SpacesInParentheses: false
+SpaceAfterCStyleCast: true
+SpaceBeforeAssignmentOperators: true
+PointerAlignment: Right
+AlignOperands: true
+AlignTrailingComments: true
+AllowShortIfStatementsOnASingleLine: false
+BreakBeforeTernaryOperators: true
+SortIncludes: false
