@@ -6,13 +6,12 @@
 #include <utility>
 #include "debug.h"
 
+struct VariablesCategory { };
+using VariablesIndex = utils::ArrayIndex<VariablesCategory>;
+
 constexpr int number_of_epsilons = 21;
 
-#define FOREACH_VARIABLE(X) \
-  X(c0) \
-  X(c1) \
-  X(c2) \
-  X(c3) \
+#define FOREACH_EPSILON(X) \
   X(e0) \
   X(e1) \
   X(e2) \
@@ -33,40 +32,67 @@ constexpr int number_of_epsilons = 21;
   X(e17) \
   X(e18) \
   X(e19) \
-  X(e20) \
+  X(e20)
+
+#define FOREACH_VARIABLE(X) \
+  X(c0) \
+  X(c1) \
+  X(c2) \
+  X(c3) \
   X(x)
 
-#define DECLARE_VARIABLE(name) name,
-#define ADD_CASE_RETURN(name) AI_CASE_RETURN(name);
-#define DECLARE_SYMBOL(name) symbolic::Symbol const& name(*variables[to_index(Variables::name)]);
+#define DECLARE_VARIABLE_ENUM(name) name,
 
-enum class Variables
+enum class VariablesEnum
 {
-  FOREACH_VARIABLE(DECLARE_VARIABLE)
-
+  FOREACH_VARIABLE(DECLARE_VARIABLE_ENUM)
+  FOREACH_EPSILON(DECLARE_VARIABLE_ENUM)
   count
 };
 
-constexpr size_t number_of_variables = static_cast<size_t>(Variables::count);
-
-std::string to_string(Variables variable)
+VariablesIndex epsilon_index_to_variables_index(FloatingPointRoundOffError<number_of_epsilons>::epsilon_index_type i)
 {
-  using enum Variables;
+  return VariablesIndex{static_cast<int>(VariablesEnum::e0) + i.get_value()};
+}
+
+FloatingPointRoundOffError<number_of_epsilons>::epsilon_index_type variables_index_to_epsilon_index(VariablesIndex i)
+{
+  return FloatingPointRoundOffError<number_of_epsilons>::epsilon_index_type{i.get_value() - static_cast<int>(VariablesEnum::e0)};
+}
+
+constexpr size_t number_of_variables = static_cast<size_t>(VariablesEnum::count);
+
+utils::Array<symbolic::Symbol const*, number_of_variables, VariablesIndex> variables;
+
+struct Variable
+{
+  VariablesIndex index;
+  char const* name;
+};
+
+#define DECLARE_VARIABLE(name) Variable name{VariablesIndex{static_cast<int>(VariablesEnum::name)}, #name};
+
+namespace Variables {
+  FOREACH_VARIABLE(DECLARE_VARIABLE)
+  FOREACH_EPSILON(DECLARE_VARIABLE)
+} // namespace Variables
+
+#define ADD_CASE_RETURN(name) AI_CASE_RETURN(name);
+
+std::string to_string(VariablesEnum variable)
+{
+  using enum VariablesEnum;
   switch (variable)
   {
     FOREACH_VARIABLE(ADD_CASE_RETURN)
+    FOREACH_EPSILON(ADD_CASE_RETURN)
     case count:   // Suppress compiler warning about count.
       ASSERT(false);
   }
   AI_NEVER_REACHED
 }
 
-std::array<symbolic::Symbol const*, number_of_variables> variables;
-
-int to_index(Variables variable)
-{
-  return static_cast<int>(variable);
-}
+#define DECLARE_SYMBOL(name) symbolic::Symbol const& name(*variables[Variables::name.index]);
 
 // For gdb.
 void print(symbolic::Expression const& expression)
@@ -85,55 +111,31 @@ int main()
 
   using FA = FloatingPointRoundOffError<number_of_epsilons>;
 
-  for (Variables variable : utils::EnumIterator<Variables, Variables::c0, Variables::x>())
-//  for (int v = 0; v < number_of_variables; ++v)
-  {
-//    Variables variable = static_cast<Variables>(v);
-    variables[variable] = &symbolic::Symbol::realize(to_string(variable));
-  }
+  for (VariablesIndex index = variables.ibegin(); index != variables.iend(); ++index)
+    variables[index] = &symbolic::Symbol::realize(to_string(static_cast<VariablesEnum>(index.get_value())));
 
   FOREACH_VARIABLE(DECLARE_SYMBOL);
 
-  FA::epsilon_index_type e0i(0);
-  FA::epsilon_index_type e1i(1);
-  FA::epsilon_index_type e2i(2);
-  FA::epsilon_index_type e3i(3);
-  FA::epsilon_index_type e4i(4);
-  FA::epsilon_index_type e5i(5);
-  FA::epsilon_index_type e6i(6);
-  FA::epsilon_index_type e7i(7);
-  FA::epsilon_index_type e8i(8);
-  FA::epsilon_index_type e9i(9);
-  FA::epsilon_index_type e10i(10);
-  FA::epsilon_index_type e11i(11);
-  FA::epsilon_index_type e12i(12);
-  FA::epsilon_index_type e13i(13);
-  FA::epsilon_index_type e14i(14);
-  FA::epsilon_index_type e15i(15);
-  FA::epsilon_index_type e16i(16);
-  FA::epsilon_index_type e17i(17);
-  FA::epsilon_index_type e18i(18);
-  FA::epsilon_index_type e19i(19);
-  FA::epsilon_index_type e20i(20);
+  using namespace Variables;
 
   utils::Array<symbolic::Symbol const*, number_of_epsilons, FA::epsilon_index_type> epsilons;
   for (FA::epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
-    epsilons[i] = variables[to_index(Variables::e0) + i.get_value()];
+    epsilons[i] = variables[epsilon_index_to_variables_index(i)];
 
   // Construct the approximation cubic f_a(x_n).
-  FA c3x{c3 * x, e5i};
-  FA c2_plus_c3x{c2 + c3x, e4i};
-  FA c2_plus_c3x_x{c2_plus_c3x * x, e3i};
-  FA c1_plus_c2_plus_c3x_x{c1 + c2_plus_c3x_x, e2i};
+  FA c3x{c3 * x, variables_index_to_epsilon_index(e5.index)};
+  FA c2_plus_c3x{c2 + c3x, variables_index_to_epsilon_index(e4.index)};
+  FA c2_plus_c3x_x{c2_plus_c3x * x, variables_index_to_epsilon_index(e3.index)};
+  FA c1_plus_c2_plus_c3x_x{c1 + c2_plus_c3x_x, variables_index_to_epsilon_index(e2.index)};
   std::cout << "c1_plus_c2_plus_c3x_x = " << c1_plus_c2_plus_c3x_x << std::endl;
-  FA c1_plus_c2_plus_c3x_x_x{c1_plus_c2_plus_c3x_x * x, e1i};
-  FA fa{c0 + c1_plus_c2_plus_c3x_x_x, e0i};
+  FA c1_plus_c2_plus_c3x_x_x{c1_plus_c2_plus_c3x_x * x, variables_index_to_epsilon_index(e1.index)};
+  FA fa{c0 + c1_plus_c2_plus_c3x_x_x, variables_index_to_epsilon_index(e0.index)};
 
   // Construct the derivative dfa(x_n).
-  FA three_c3x{3 * c3 * x, e9i};
-  FA two_c2_plus_three_c3x{2 * c2 + three_c3x, e8i};
-  FA two_c2_plus_three_c3x_x{two_c2_plus_three_c3x * x, e7i};
-  FA dfa{c1 + two_c2_plus_three_c3x_x, e6i};
+  FA three_c3x{3 * c3 * x, variables_index_to_epsilon_index(e9.index)};
+  FA two_c2_plus_three_c3x{2 * c2 + three_c3x, variables_index_to_epsilon_index(e8.index)};
+  FA two_c2_plus_three_c3x_x{two_c2_plus_three_c3x * x, variables_index_to_epsilon_index(e7.index)};
+  FA dfa{c1 + two_c2_plus_three_c3x_x, variables_index_to_epsilon_index(e6.index)};
 
   // And ga.
   FA ga = x - fa / dfa;
@@ -144,7 +146,7 @@ int main()
 
   x = 0.1;
   for (FA::epsilon_index_type i = epsilons.ibegin(); i != epsilons.iend(); ++i)
-    *variables[to_index(Variables::e0) + i.get_value()] = 0.0;
+    *variables[epsilon_index_to_variables_index(i)] = 0.0;
 
   // df^2 =                                   c₁²  + 4c₁c₂x  + 6c₁c₃x² + 4c₂²x² + 12c₂c₃x³ + 9c₃²x⁴
 
@@ -190,13 +192,13 @@ int main()
 
   // Run over all cᵢcⱼ.
   int col = 0;
-  for (int i = 0; i <= 3; ++i)
+  for (auto i = Variables::c0.index; i <= Variables::c3.index; ++i)
   {
-    for (int j = i; j <= 3; ++j)
+    for (auto j = i; j <= Variables::c3.index; ++j)
     {
       int dc = i == j ? 2 : 1;  // Derivative correction.
       double estimate = ga_df2.derivative(*variables[i]).derivative(*variables[j]).evaluate();
-      ASSERT(utils::almost_equal(estimate, dc * factors[col][0] * std::pow(0.1, i + j - 1), 1e-6) ||
+      ASSERT(utils::almost_equal(estimate, dc * factors[col][0] * std::pow(0.1, i.get_value() + j.get_value() - 1), 1e-6) ||
           (factors[col][0] == 0 && std::abs(estimate) < 1e-9));
       ++col;
     }
@@ -204,28 +206,28 @@ int main()
   // Get the part with epsilons.
   auto& ga_df2_epsilon = ga_df2 - ga_df2_no_epsilons;
   col = 0;
-  for (int i = 0; i <= 3; ++i)
+  for (auto i = Variables::c0.index; i <= Variables::c3.index; ++i)
   {
-    for (int j = i; j <= 3; ++j)
+    for (auto j = i; j <= Variables::c3.index; ++j)
     {
       int dc = i == j ? 2 : 1;  // Derivative correction.
       auto& dg_dcidcj = ga_df2_epsilon.derivative(*variables[i]).derivative(*variables[j]);
       // Run over the table rows (k = 0 is the second row).
       for (int k = 0; k <= 6; ++k)
       {
-        int eps = epsilon_index[k];
-        *variables[eps + 4] = 1.0;
+        auto eps = epsilon_index_to_variables_index(FA::epsilon_index_type{epsilon_index[k]});
+        *variables[eps] = 1.0;
         double estimate = dg_dcidcj.evaluate();
-        ASSERT(utils::almost_equal(estimate, dc * factors[col][k + 1] * std::pow(0.1, i + j - 1), 1e-6) ||
+        ASSERT(utils::almost_equal(estimate, dc * factors[col][k + 1] * std::pow(0.1, i.get_value() + j.get_value() - 1), 1e-6) ||
             (factors[col][k + 1] == 0 && std::abs(estimate) < 1e-9));
-        *variables[eps + 4] = 0.0;
+        *variables[eps] = 0.0;
       }
       ++col;
     }
   }
 
-  FA fa_div_dfa{fa / dfa, e10i};
-  FA ga2{x - fa_div_dfa, e11i};
+  FA fa_div_dfa{fa / dfa, variables_index_to_epsilon_index(e10.index)};
+  FA ga2{x - fa_div_dfa, variables_index_to_epsilon_index(e11.index)};
 
   std::cout << "ga2 = " << ga2 << std::endl;
   std::cout << "error = ±(" << ga2.error() << ')' << std::endl;
@@ -240,13 +242,13 @@ int main()
   // x_n_plus_1 = x_n - step;
 
   // Construct half times the second derivative: hddfa(x_n).
-  FA hddfa{c2 + three_c3x, e10i};
-  FA square_dQ_x{dfa * dfa, e11i};
-  FA Q_x_dQ_x{fa * dfa, e12i};
-  FA Q_x_half_ddQ_x{fa * hddfa, e13i};
-  FA square_dQ_x_minus_Q_x_half_ddQ_x{square_dQ_x - Q_x_half_ddQ_x, e14i};
-  FA step{Q_x_dQ_x / square_dQ_x_minus_Q_x_half_ddQ_x, e15i};
-  FA x_n_plus_1{x - step, e16i};
+  FA hddfa{c2 + three_c3x, variables_index_to_epsilon_index(e10.index)};
+  FA square_dQ_x{dfa * dfa, variables_index_to_epsilon_index(e11.index)};
+  FA Q_x_dQ_x{fa * dfa, variables_index_to_epsilon_index(e12.index)};
+  FA Q_x_half_ddQ_x{fa * hddfa, variables_index_to_epsilon_index(e13.index)};
+  FA square_dQ_x_minus_Q_x_half_ddQ_x{square_dQ_x - Q_x_half_ddQ_x, variables_index_to_epsilon_index(e14.index)};
+  FA step{Q_x_dQ_x / square_dQ_x_minus_Q_x_half_ddQ_x, variables_index_to_epsilon_index(e15.index)};
+  FA x_n_plus_1{x - step, variables_index_to_epsilon_index(e16.index)};
 
   std::cout << "step = " << step << std::endl;
   std::cout << "step.error = ±(" << step.error() << ')' << std::endl;
