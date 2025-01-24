@@ -16,6 +16,15 @@
 #include "utils/debug_ostream_operators.h"
 #include "debug.h"
 
+#define FOREACH_VARIABLE(X) \
+  X(c0) \
+  X(c1) \
+  X(c2) \
+  X(c3) \
+  X(x)
+
+#include "FloatingPointRoundOffError.h"
+
 using namespace mpfr;
 
 constexpr mp_prec_t precision_in_bits = 256;
@@ -23,9 +32,20 @@ constexpr double log10_of_two = 0.30102999566;
 constexpr int mpprecision = precision_in_bits * log10_of_two;
 double const rel_err_threshold = std::pow(10.0, -0.5 * mpprecision);
 
+// For gdb.
 void print(mpreal const& val)
 {
   std::cout << val << std::endl;
+}
+
+void print(symbolic::Expression const& expression)
+{
+  std::cout << expression << std::endl;
+}
+
+void print(floating_point_round_off_error::Expression const& expression)
+{
+  std::cout << expression << std::endl;
 }
 
 // Update the concept definition to correctly check the streamability.
@@ -155,11 +175,67 @@ int main(int argc, char* argv[])
   // Print the string.
   std::cout << "The input argument is: \"" << input << "\"." << std::endl;
 
+  using namespace floating_point_round_off_error;
+  using FA = floating_point_round_off_error::Expression;
+
+  ExpressionManager expression_manager;
+
+  FOREACH_VARIABLE(DECLARE_VARIABLE);   // Declare all variables (c0, c1, c2, c3, x).
+
+  // Construct the approximation cubic f_a(x_n).
+  auto fa = c0 + (c1 + (c2 + c3 * x) * x) * x;
+
+  // Construct the derivative dfa(x_n).
+  auto three_c3x = 3 * c3 * x;
+  auto dfa = c1 + (2 * c2 + three_c3x) * x;
+
+  // Prepare the formula required to calculate the floating point round off errors of Halley's method.
+  FA x_n_plus_1 = x - (fa * dfa) / (utils::square(dfa) - fa * (c2 + three_c3x));
+
+  // Get the expression for xₙ₊₁.
+  auto& expression_x_n_plus_1 = x_n_plus_1.expand();
+
+  std::cout << "Halley's method:" << std::endl;
+//  std::cout << "xₙ₊₁ = " << symbolic::UseUtf8{1} << x_n_plus_1 << std::endl;
+//  std::cout << "Δxₙ₊₁ = ±√(" << symbolic::UseUtf8{1} << x_n_plus_1.error_squared() << ')' << std::endl;
+
+  // Keep a reference to the symbol x handy.
+  symbolic::Symbol const& symbol_x = expression_manager.get_variable(x.index_).symbol();
+  // The error function.
+  auto& error_squared = x_n_plus_1.error_squared();
+
+  Dout(dc::notice, "error_squared = " << error_squared);
+
+  symbolic::Sum const& sum = static_cast<symbolic::Sum const&>(error_squared);
+  Dout(dc::notice, "sum = " << sum.arg1());
+  symbolic::Product const& product = static_cast<symbolic::Product const&>(sum.arg1());
+  Dout(dc::notice, "product = " << product.arg2());
+  symbolic::Product const& product2 = static_cast<symbolic::Product const&>(product.arg2());
+  Dout(dc::notice, "product2 = " << product2.arg1());
+  Dout(dc::notice, "is power: " << product2.arg1().is_power());
+  symbolic::Power const& power = static_cast<symbolic::Power const&>(product2.arg1());
+  Dout(dc::notice, "power = " << power.arg1());
+  auto& error_squared_times = error_squared * power.arg1();
+  Dout(dc::notice, "error_squared_times = " << error_squared_times);
+
+#if 0
+  symbolic::Symbol const& symbol_r = symbolic::Symbol::realize("r");
+  symbolic::Symbol const& symbol_h = symbolic::Symbol::realize("h");
+  auto& r_plus_h = symbol_r + symbol_h;
+  auto& error_squared_subs_x = error_squared.subs(symbol_x, r_plus_h);
+
+  Dout(dc::notice, "error_squared_subs_x = " << error_squared_subs_x);
+#endif
+
   try
   {
     auto double_coefficients = parse_string<double>(input);
     math::CubicPolynomial cubic(double_coefficients);
     std::cout << std::setprecision(18) << cubic << '\n';
+
+    // Set the coefficients in the error formula.
+    for (auto i = c0.index_; i <= c3.index_; ++i)
+      expression_manager.get_variable(i).symbol() = cubic[i.get_value()];       // Assumes c0.index_ == 0, etc.
 
     double c0 = cubic[0];
     double c1 = cubic[1];
@@ -190,7 +266,7 @@ int main(int argc, char* argv[])
         math::QuadraticPolynomial qp(cubic(extreme), cubic.derivative(extreme), qc2);
         std::array<double, 2> roots;
         int n = qp.get_roots(roots);
-        if (n > 0)
+        if (n > 1)
         {
           ASSERT(n == 2);
           Dout(dc::notice|continued_cf, "special_case2: qp = " << qp << " where root*c3/qc2 is " << (roots[0] * c3 / qc2) <<
@@ -201,7 +277,7 @@ int main(int argc, char* argv[])
           Dout(dc::finish, (special_case2 ? "" : " NOT") << " special case 2.");
         }
         else
-          Dout(dc::notice, "special_case2: qp = " << qp << " which has no roots! --> NOT special case 2.");
+          Dout(dc::notice, "special_case2: qp = " << qp << " which has " << n << " roots! --> NOT special case 2.");
       }
       else
         Dout(dc::notice, "special_case2: D = " << D << " --> NOT special case 2.");
@@ -209,8 +285,21 @@ int main(int argc, char* argv[])
 
     std::ostringstream title;
     title << cubic;
-    cairowindow::QuickGraph qg(title.str(), "x", "y", {-10.0, 10.0}, {-10.0, 10.0});
-    qg.add_function([&](double x){ return cubic(x); });
+    double const y_max_error = 2.5;     // log10(max machine epsilons of relative error)
+    cairowindow::Range const x_range{0.5, 1.0};
+    cairowindow::Range const y_range{-0.01, 0.01};
+    double const error_scale = y_range.max() / y_max_error;
+    cairowindow::QuickGraph qg(title.str(), "x", "y", x_range, y_range);
+    qg.add_function([&](double x){ return cubic(x); }, cairowindow::color::teal);
+    qg.add_function([&](double x){
+        symbol_x = x;
+        return std::log10(/*numeric_limits<double>::epsilon() * */
+            0.866675 * std::sqrt(error_squared.evaluate()) / std::abs(expression_x_n_plus_1.evaluate())) * error_scale;
+     }, cairowindow::color::red);
+    qg.add_function([&](double x){
+        double result = -std::log10(std::abs(utils::square(cubic.derivative(x)) - 0.5 * cubic.second_derivative(x) * cubic(x))) * 0.002;
+        return result;
+        }, cairowindow::color::blue);
 
     std::array<mpreal, 4> coefficients = parse_string<mpreal>(input);
     for (int i = 0; i < coefficients.size(); ++i)
@@ -241,6 +330,9 @@ int main(int argc, char* argv[])
     // Draw a vertical line where this root is.
     qg.add_line({{root.toDouble(), 0.0}, Direction::up}, solid_line_style({.line_color = color::lime}));
 
+    // Draw the derivative.
+    qg.add_function([&](double x){ return cubic.derivative(x); });
+
     // Create a window.
     Window window("log/log graph " + title.str(), 1200, 900);
     auto background_layer = window.create_background_layer<Layer>(color::white COMMA_DEBUG_ONLY("background_layer"));
@@ -259,8 +351,8 @@ int main(int argc, char* argv[])
         "log₁₀(y)", {});
 //    plot.set_xrange({-17.0, -12.0});
 //    plot.set_yrange({-17.0, -12.0});
-    plot.set_xrange({-17.0, 0.0});
-    plot.set_yrange({-17.0, 0.0});
+    plot.set_xrange({-16.0, -12.0});
+    plot.set_yrange({-16.0, -12.0});
     plot.add_to(background_layer, false);
 
     draw::TextStyle slider_style({.position = draw::centered_below, .font_size = 18.0, .offset = 10});
@@ -297,6 +389,12 @@ int main(int argc, char* argv[])
       // Pick some value for x_n.
       double offset_n = std::pow(10.0, slider_xn.value());
       double x_n = root.toDouble() * (1.0 + offset_n);
+
+      symbol_x = x_n;
+      double relative_error =
+        0.866675 * std::numeric_limits<double>::epsilon() * std::sqrt(error_squared.evaluate()) / std::abs(expression_x_n_plus_1.evaluate());
+      plot::Line plot_error{{std::log10(relative_error), 0.0}, Direction::up};
+      plot.add_line(second_layer, solid_line_style({.line_color = color::darkred, .line_width = 2.0}), plot_error);
 
       double offset_n_plus_1 = next_offset(root, offset_n, coefficients).toDouble();
       double real_root = root.toDouble();

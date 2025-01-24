@@ -9,6 +9,15 @@
 #include "debug.h"
 #include "cwds/Restart.h"
 
+#define FOREACH_VARIABLE(X) \
+  X(c0) \
+  X(c1) \
+  X(c2) \
+  X(c3) \
+  X(x)
+
+#include "FloatingPointRoundOffError.h"
+
 constexpr int number_of_cubics = 1000000;
 
 int get_roots(math::CubicPolynomial<double>& cubic, std::array<double, 3>& roots_out, int& iterations)
@@ -103,15 +112,65 @@ void sanity_check(math::CubicPolynomial<double> const& cubic, double const root)
 
     static int count = 0;
     ++count;
-    if (!special_case1 && !special_case2)
+    if (special_case1)
+      Dout(dc::notice, "This is Special Case 1.");
+    if (special_case2)
+      Dout(dc::notice, "This is Special Case 2.");
+    if (/*!special_case1 &&*/ !special_case2)
     {
       Dout(dc::notice(D >= 0), "epsilon = " << epsilon);
       if (count == 1000 || steps > 9)
       {
         std::ostringstream title;
         title << cubic;
-        cairowindow::QuickGraph qg(title.str(), "x", "y", {-10.0, 10.0}, {-10.0, 10.0});
+        cairowindow::QuickGraph qg(title.str(), "x", "y", {-2.0, 2.0}, {-2.0, 2.0});
         qg.add_function([&](double x){ return cubic(x); });
+
+        using namespace floating_point_round_off_error;
+        using FA = floating_point_round_off_error::Expression;
+
+        ExpressionManager expression_manager;
+
+        FOREACH_VARIABLE(DECLARE_VARIABLE);   // Declare all variables (c0, c1, c2, c3, x).
+
+        // Set the coefficients in the error formula.
+        for (auto i = c0.index_; i <= c3.index_; ++i)
+          expression_manager.get_variable(i).symbol() = cubic[i.get_value()];       // Assumes c0.index_ == 0, etc.
+
+        // Construct the approximation cubic f_a(x_n).
+        auto fa = c0 + (c1 + (c2 + c3 * x) * x) * x;
+
+        // Construct the derivative dfa(x_n).
+        auto three_c3x = 3 * c3 * x;
+        auto dfa = c1 + (2 * c2 + three_c3x) * x;
+
+        // Prepare the formula required to calculate the floating point round off errors of Halley's method.
+        FA x_n_plus_1 = x - (fa * dfa) / (utils::square(dfa) - fa * (c2 + three_c3x));
+
+        // Get the expression for xₙ₊₁.
+        auto& expression_x_n_plus_1 = x_n_plus_1.expand();
+
+        // Keep a reference to the symbol x handy.
+        symbolic::Symbol const& symbol_x = expression_manager.get_variable(x.index_).symbol();
+        // The error function.
+        auto& error_squared = x_n_plus_1.error_squared();
+
+        std::cout << "Halley's method:" << std::endl;
+        std::cout << "xₙ₊₁ = " << symbolic::UseUtf8{1} << x_n_plus_1 << std::endl;
+        std::cout << "Δxₙ₊₁ = ±√(" << symbolic::UseUtf8{1} << error_squared << ')' << std::endl;
+        std::cout << "Δxₙ₊₁^2 = " << symbolic::UseUtf8{1} << error_squared << std::endl;
+
+        qg.add_function([&](double x){
+            symbol_x = x;
+            return std::log10(/*numeric_limits<double>::epsilon() * */
+                0.866675 * std::sqrt(error_squared.evaluate()) / std::abs(expression_x_n_plus_1.evaluate()));
+         }, cairowindow::color::red);
+
+        cairowindow::draw::LineStyle solid_line_style({.line_color = cairowindow::color::black, .line_width = 1.0});
+
+        // Draw a vertical line where this root is.
+        qg.add_line({{real_root, 0.0}, cairowindow::Direction::up}, solid_line_style({.line_color = cairowindow::color::lime}));
+
         qg.wait_for_keypress();
       }
     }
@@ -173,7 +232,7 @@ int main(int argc, char* argv[])
   // Generate random cubics.
   std::cout << "Generating random cubic polynomials..." << std::endl;
   std::vector<math::CubicPolynomial<double>> cubics;
-  std::uniform_real_distribution<double> dist(-10.0, 10.0);
+  std::uniform_real_distribution<double> dist(-2.0, 2.0);
   for (int i = 0; i < number_of_cubics; ++i)
   {
     cubics.emplace_back(dist(engine), dist(engine), dist(engine), dist(engine));

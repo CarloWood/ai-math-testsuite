@@ -147,14 +147,14 @@ int main()
   }
 
   std::cout << "Newtons's method:" << std::endl;
-  std::cout << "gₐ = " << ga << std::endl;
-  std::cout << "Δgₐ = ±√(" << ga.error_squared() << ')' << std::endl;
+  std::cout << "gₐ = " << symbolic::UseUtf8{1} << ga << std::endl;
+  std::cout << "Δgₐ = ±√(" << symbolic::UseUtf8{1} << ga.error_squared() << ')' << std::endl;
 
   //------------------------------------------------------------------------------------------------
   // Halley's method.
   FA x_n_plus_1 = x - (fa * dfa) / (utils::square(dfa) - fa * (c2 + three_c3x));
 
   std::cout << "Halley's method:" << std::endl;
-  std::cout << "xₙ₊₁ = " << x_n_plus_1 << std::endl;
-  std::cout << "Δxₙ₊₁ = ±√(" << x_n_plus_1.error_squared() << ')' << std::endl;
+  std::cout << "xₙ₊₁ = " << symbolic::UseUtf8{1} << x_n_plus_1 << std::endl;
+  std::cout << "Δxₙ₊₁ = ±√(" << symbolic::UseUtf8{1} << x_n_plus_1.error_squared() << ')' << std::endl;
 }
