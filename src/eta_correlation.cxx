@@ -117,11 +117,9 @@ int main(int argc, char* argv[])
   gmp_randinit_mt(randstate);
   gmp_randseed_ui(randstate, seed);
 
-#if 0
   std::array<mpreal, 4> mpreal_coefficients = { -0.196023, 0.959263, -1.67059, 1.03862 };
   math::CubicPolynomial<mpreal> cubic(mpreal_coefficients);
   std::cout << cubic << '\n';
-#endif
 
   // Prepare 1000 buckets to store values in the range [-0.5, 0.5];
   constexpr int number_of_buckets = 1000;
@@ -147,11 +145,7 @@ int main(int argc, char* argv[])
     buckets.insert(eta_to_machine_epsilons(eta1.toDouble()));
   }
   std::ostringstream formula;
-  formula << "((double)x - x) / abs(x)";
-
-  // μ = (d - x) / 2^⌊log₂(|x|)⌋ -->
-  // d = x + μ 2^⌊log₂(|x|)⌋ = x (1 + η) -->
-  // η = μ 2^⌊log₂(|x|)⌋ / x
+  formula << "((double)d1 - x^2) / abs(x^2)";
 
   std::cout << "Max count: " << buckets.max_count() << '\n';
 
