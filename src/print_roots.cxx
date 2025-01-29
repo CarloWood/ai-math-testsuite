@@ -327,6 +327,10 @@ int main(int argc, char* argv[])
 
     draw::LineStyle solid_line_style({.line_color = color::black, .line_width = 1.0});
 
+    double z = std::log10(std::abs(0.866675 / cubic.derivative(root.toDouble()))) * error_scale;
+    Dout(dc::notice, "z = " << z);
+    qg.add_line({{0.0, z}, Direction::right}, solid_line_style({.line_color = color::blue}));
+
     // Draw a vertical line where this root is.
     qg.add_line({{root.toDouble(), 0.0}, Direction::up}, solid_line_style({.line_color = color::lime}));
 

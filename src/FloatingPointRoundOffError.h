@@ -534,7 +534,7 @@ class Expression
       for (epsilon_index_type i = first_order_.ibegin(); i != first_order_.iend(); ++i)
       {
         if (first_order_[i] != nullptr && !symbolic::Constant::is_zero(*first_order_[i]))
-          os << prefix << '(' << *first_order_[i] << ")⋅ε" << utils::to_subscript_string(i.get_value());
+          os << prefix << '(' << *first_order_[i] << ")⋅η" << utils::to_subscript_string(i.get_value());
         prefix = " + ";
       }
       os << "\e[0m";

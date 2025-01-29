@@ -157,4 +157,36 @@ int main()
   std::cout << "Halley's method:" << std::endl;
   std::cout << "xₙ₊₁ = " << symbolic::UseUtf8{1} << x_n_plus_1 << std::endl;
   std::cout << "Δxₙ₊₁ = ±√(" << symbolic::UseUtf8{1} << x_n_plus_1.error_squared() << ')' << std::endl;
+
+#if 0
+  // This was used to generate etas.txt, which then was converted with expression-converter.sh.
+  {
+    FA d0 = c1 * x; // unused
+    FA d1 = utils::square(x);
+    FA d2 = c2 * x;
+    FA d3 = c3 * d1;
+    FA d4 = d2 + d3;
+    FA d5 = c1 + d4;
+    FA d6 = d5 * x;
+    FA fa = c0 + d6;
+    FA d8 = (3 * c3) * x;
+    FA d9 = (2 * c2) + d8;
+    FA d10 = d9 * x;
+    FA dfa = c1 + d10;
+    FA ddfa = c2 + d8;
+
+    std::cout << "d1 = " << d1 << std::endl;
+    std::cout << "d2 = " << d2 << std::endl;
+    std::cout << "d3 = " << d3 << std::endl;
+    std::cout << "d4 = " << d4 << std::endl;
+    std::cout << "d5 = " << d5 << std::endl;
+    std::cout << "d6 = " << d6 << std::endl;
+    std::cout << "fa = " << fa << std::endl;
+    std::cout << "d8 = " << d8 << std::endl;
+    std::cout << "d9 = " << d9 << std::endl;
+    std::cout << "d10 = " << d10 << std::endl;
+    std::cout << "dfa = " << dfa << std::endl;
+    std::cout << "ddfa = " << ddfa << std::endl;
+  }
+#endif
 }

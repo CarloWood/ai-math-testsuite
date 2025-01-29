@@ -55,3 +55,6 @@ target_link_libraries(newton_epsilons AICxx::symbolic AICxx::math ${AICXX_OBJECT
 
 add_executable(epsilon_sums epsilon_sums.cxx)
 target_link_libraries(epsilon_sums AICxx::cairowindow AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${MPFR_LIBRARY})
+
+add_executable(eta_correlation eta_correlation.cxx)
+target_link_libraries(eta_correlation AICxx::cairowindow AICxx::symbolic AICxx::math ${AICXX_OBJECTS_LIST} ${GMP_LIBRARY} ${MPFR_LIBRARY})
