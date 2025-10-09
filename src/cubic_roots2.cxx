@@ -44,7 +44,7 @@ int main()
       event_loop.set_cleanly_terminated();
     });
 
-    plot::Plot plot(window.geometry(), { .grid = {.color = color::orange} },
+    plot::Plot plot(window.geometry(), {{ .color = color::orange }},
         "Cubic roots", {},
         "x", {},
         "y", {});

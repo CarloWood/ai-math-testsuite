@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
       event_loop.set_cleanly_terminated();
     });
 
-    plot::Plot plot(window.geometry(), { .grid = {.color = color::orange} },
+    plot::Plot plot(window.geometry(), {{ .color = color::orange }},
         "Transformed cubic to calculate roots", {},
         "u", {},
         "C0 - 3u + u^3", {});
@@ -214,7 +214,7 @@ int main(int argc, char* argv[])
       return {C0, (initial_guess - roots[0]) / std::abs(roots[0])};
     };
 
-    plot::Plot plot2(window2.geometry(), { .grid = {.color = color::orange} },
+    plot::Plot plot2(window2.geometry(), {{.color = color::orange}},
         "Relative error of initial guess of root", {},
         "C0", {},
         "(initial_guess - root) / |root|", {});
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
     plot2.set_yrange({ymin, ymax});
     plot2.add_to(background_layer2, false);
 
-    plot::Plot plot3(window3.geometry(), { .grid = {.color = color::orange} },
+    plot::Plot plot3(window3.geometry(), {{.color = color::orange}},
         "Smoothing function", {},
         "C0", {},
         "S(C0)", {});

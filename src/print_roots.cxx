@@ -349,7 +349,7 @@ int main(int argc, char* argv[])
       event_loop.set_cleanly_terminated();
     });
 
-    plot::Plot plot(window.geometry(), { .grid = {.color = color::orange} },
+    plot::Plot plot(window.geometry(), {{.color = color::orange}},
         "Log/log of cubic", {},
         "log₁₀(x - root)", {},
         "log₁₀(y)", {});

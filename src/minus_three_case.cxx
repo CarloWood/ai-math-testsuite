@@ -932,7 +932,7 @@ int main()
     std::vector<mpreal> roots;
 
     // Run over the M intervals between the previously found extrema and store the value of the new E.
-    std::vector<math::Point> points;
+    std::vector<math::Point<2>> points;
     for (int i  = 0; i < extrema.size() - 1; ++i)
     {
       // The begin and end of interval i.

@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
       event_loop.set_cleanly_terminated();
     });
 
-    plot::Plot plot(window.geometry(), {.grid = {.color = color::orange}}, "Probability Distribution", {}, "sum", {},
+    plot::Plot plot(window.geometry(), {{.color = color::orange}}, "Probability Distribution", {}, "sum", {},
                     "count", {});
     plot.set_xrange({-1.0, 1.0});
     plot.set_yrange({0.0, 2500.0});
