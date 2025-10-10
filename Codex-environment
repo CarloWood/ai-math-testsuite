@@ -49,11 +49,6 @@ Maintenance script
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Try to update the super project.
-git fetch --recurse-submodules origin
-git pull --ff-only
-git checkout master
-
 # Make sure submodule URLs match .gitmodules (handles moved/renamed repos).
 git submodule sync --recursive
 
