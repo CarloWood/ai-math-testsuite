@@ -40,7 +40,7 @@ git config push.recurseSubmodules on-demand
 # Install dependencies.
 apt-get update
 apt-get install -y --no-install-recommends build-essential apt-utils
-apt-get install -y --no-install-recommends cmake ninja-build pkg-config libboost-dev libeigen3-dev
+apt-get install -y --no-install-recommends cmake ninja-build libboost-dev libeigen3-dev
 -----------------------------------------------------------------------------
 
 Maintenance script
