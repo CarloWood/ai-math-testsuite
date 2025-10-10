@@ -1,0 +1,81 @@
+Repository
+
+  ai-math-testsuite
+
+Name
+
+  CarloWood/ai-math-testsuite
+
+Description
+
+  Mathematical objects.
+
+Code execution
+
+Environment variables
+
+  GITACHE_ROOT /workspace/gitache
+
+Container Caching
+
+  ON
+
+Setup script
+
+  Manual
+
+---setup script--------------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+# Get all submodules.
+git submodule update --init --recursive
+
+# Create the gitache root.
+mkdir "$GITACHE_ROOT"
+git config push.recurseSubmodules on-demand
+
+# Install dependencies.
+apt-get update
+apt-get install -y --no-install-recommends build-essential apt-utils
+apt-get install -y --no-install-recommends cmake ninja-build pkg-config libboost-dev libeigen3-dev
+-----------------------------------------------------------------------------
+
+Maintenance script
+
+---maintenance script--------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Make sure submodule URLs match .gitmodules (handles moved/renamed repos).
+git submodule sync --recursive
+
+# Check out the SHAs recorded by the superproject, fetching as needed.
+# --force     : Discard any stale worktrees from the cache.
+# --checkout  : Ensure a clean detached-HEAD at the recorded commit.
+# --init      : Initialize missing submodules (first run in a warm container).
+# --recursive : Do the same for nested submodules.
+# --jobs N    : Parallelize for speed.
+git submodule update --init --recursive --force --checkout --jobs 8
+
+# Show what we ended up with, for debugging.
+git submodule status --recursive
+-----------------------------------------------------------------------------
+
+Agent internet access
+
+  ON
+
+  Domain allowlist
+
+    None
+
+  Additional allowed domains
+
+    github.com
+
+  Allowed HTTP Methods
+
+    All methods
