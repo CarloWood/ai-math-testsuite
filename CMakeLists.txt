@@ -14,7 +14,7 @@ set(GITACHE_PACKAGES libcwd_r)
 include(cwm4/cmake/StableGitache)
 
 # This project uses aicxx modules.
-include(cwm4/cmake/AICxxProject)
+include(cwm4/cmake/AICxxProject NO_POLICY_SCOPE)
 
 # Exit if someone tries to contaminates the source directory with an in-source build.
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
