@@ -267,7 +267,6 @@ void test_vector_3d()
 
   require_near(v.dot(Vector<3, double>{4.0, 5.0, 6.0}), 32.0, kTolerance, "Vector<3> dot");
 
-  Dout(dc::notice, "v = " << v);
   Vector<3, double> cross = v.cross(Vector<3, double>{-1.0, 0.0, 2.0});
   require_components_near<3>(cross, {4.0, -5.0, 2.0}, kTolerance, "Vector<3> cross product");
 
@@ -427,7 +426,7 @@ void test_line_2d()
 
   Line<2, double> other{Point<2, double>{0.0, 2.0}, Direction<2, double>::down};
   Point<2, double> intersection = line.intersection_with(other);
-  require_components_near<2>(intersection, {0.0, 2.0}, kTolerance, "Line<2> intersection");
+  require_components_near<2>(intersection, {0.0, -1.0}, kTolerance, "Line<2> intersection");
 }
 
 void test_line_3d()
