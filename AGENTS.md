@@ -38,6 +38,9 @@ However running `autogen.sh` from the root of the project also prints build inst
 If build instructions need to be changed then please edit /.build-instructions
 for example if something is wrong with a path or configure option.
 
+There is no need to inspect autogen.sh and/or /.build-instructions, just
+configure by running what the output of `autogen.sh` tells you.
+
 # What to do in case of an error during configuration/building
 
 If any error occurs, at any stage (running autogen.sh, running cmake for configuration, or

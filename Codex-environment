@@ -28,6 +28,16 @@ Setup script
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Create a /root/.libcwdrc file.
+cat > /root/.libcwdrc <<'EOF'
+silent = on
+channels_default = off
+channels_on = warning,debug,notice
+gdb = /usr/bin/gdb $GDBCOMMANDFILE
+xterm = xterm
+EOF
+chmod 0644 /root/.libcwdrc
+
 export DEBIAN_FRONTEND=noninteractive
 
 # Get all submodules.
