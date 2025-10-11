@@ -18,138 +18,142 @@ namespace {
 
 constexpr double kTolerance = 1e-9;
 
-void require(bool condition, std::string const& message)
+void require(bool condition, std::string const& test_description, std::string const& message)
 {
   if (!condition)
-    throw std::runtime_error(message);
+    throw std::runtime_error(test_description + message);
 }
 
 template<typename T>
-void require_near(T actual, T expected, T tolerance, std::string const& message)
+void require_near(T actual, T expected, T tolerance, std::string const& test_description, std::string const& message)
 {
   if (std::isnan(expected))
   {
-    require(std::isnan(actual), message + ": expected NaN");
+    require(std::isnan(actual), test_description, message + ": expected NaN");
     return;
   }
 
   if (std::isinf(expected))
   {
-    require(std::isinf(actual) && std::signbit(actual) == std::signbit(expected), message + ": expected infinity");
+    require(std::isinf(actual) && std::signbit(actual) == std::signbit(expected), test_description, message + ": expected infinity");
     return;
   }
 
   if (std::abs(actual - expected) > tolerance)
   {
     std::ostringstream oss;
-    oss << message << ": expected " << expected << ", got " << actual;
+    oss << test_description << " " << message << ": expected " << expected << ", got " << actual;
     throw std::runtime_error(oss.str());
   }
 }
 
 template<int N, typename T, typename Object>
-void require_components_near(Object const& object, std::array<T, N> const& expected, T tolerance, std::string const& context)
+void require_components_near(Object const& object, std::array<T, N> const& expected, T tolerance, std::string const& test_description, std::string const& context)
 {
   for (int i = 0; i < N; ++i)
   {
     std::ostringstream label;
     label << context << " component " << i;
-    require_near(object[i], expected[i], tolerance, label.str());
+    require_near(object[i], expected[i], tolerance, test_description, label.str());
   }
 }
 
 void test_point_2d()
 {
-  using math::Direction;
-  using math::Point;
-  using math::Vector;
+  char const* test_description = "Point<2>";
 
-  Point<2, double> p{1.0, 2.0};
-  require_near(p.eigen()(0), 1.0, kTolerance, "Point<2> eigen x");
-  require_near(p.eigen()(1), 2.0, kTolerance, "Point<2> eigen y");
+  using Point = math::Point<2>;
+  using Direction = math::Direction<2>;
+  using Vector = math::Vector<2>;
 
-  require_near(p[0], 1.0, kTolerance, "Point<2> operator[] x");
-  require_near(p[1], 2.0, kTolerance, "Point<2> operator[] y");
+  Point p{1.0, 2.0};
+  require_near(p.eigen()(0), 1.0, kTolerance, test_description, "eigen x");
+  require_near(p.eigen()(1), 2.0, kTolerance, test_description, "eigen y");
 
-  Point<2, double> const& cp = p;
-  require_near(cp.x(), 1.0, kTolerance, "Point<2> x() const");
-  require_near(cp.y(), 2.0, kTolerance, "Point<2> y() const");
+  require_near(p[0], 1.0, kTolerance, test_description, "operator[] x");
+  require_near(p[1], 2.0, kTolerance, test_description, "operator[] y");
+
+  Point const& cp = p;
+  require_near(cp.x(), 1.0, kTolerance, test_description, "x() const");
+  require_near(cp.y(), 2.0, kTolerance, test_description, "y() const");
 
   p.x() = 3.0;
   p.y() = 4.0;
-  require_components_near<2>(p, {3.0, 4.0}, kTolerance, "Point<2> setters");
+  require_components_near<2>(p, {3.0, 4.0}, kTolerance, test_description, "setters");
 
-  Direction<2, double> dx{Point<2, double>{0.0, 0.0}, Point<2, double>{1.0, 0.0}};
+  Direction dx{Point{0.0, 0.0}, Point{1.0, 0.0}};
 
-  Point<2, double> translated = p + dx;
-  require_components_near<2>(translated, {4.0, 4.0}, kTolerance, "Point<2> operator+(direction)");
+  Point translated = p + dx;
+  require_components_near<2>(translated, {4.0, 4.0}, kTolerance, test_description, "operator+(direction)");
 
-  translated = p + Vector<2, double>{-1.0, 2.0};
-  require_components_near<2>(translated, {2.0, 6.0}, kTolerance, "Point<2> operator+(vector)");
+  translated = p + Vector{-1.0, 2.0};
+  require_components_near<2>(translated, {2.0, 6.0}, kTolerance, test_description, "operator+(vector)");
 
-  translated = p - Vector<2, double>{-1.0, 2.0};
-  require_components_near<2>(translated, {4.0, 2.0}, kTolerance, "Point<2> operator-(vector)");
+  translated = p - Vector{-1.0, 2.0};
+  require_components_near<2>(translated, {4.0, 2.0}, kTolerance, test_description, "operator-(vector)");
 
-  Point<2, double> mutable_point = p;
+  Point mutable_point = p;
   mutable_point += dx;
-  require_components_near<2>(mutable_point, {4.0, 4.0}, kTolerance, "Point<2> operator+= direction");
-  mutable_point += Vector<2, double>{1.0, -1.0};
-  require_components_near<2>(mutable_point, {5.0, 3.0}, kTolerance, "Point<2> operator+= vector");
-  mutable_point -= Vector<2, double>{2.0, 2.0};
-  require_components_near<2>(mutable_point, {3.0, 1.0}, kTolerance, "Point<2> operator-= vector");
+  require_components_near<2>(mutable_point, {4.0, 4.0}, kTolerance, test_description, "operator+= direction");
+  mutable_point += Vector{1.0, -1.0};
+  require_components_near<2>(mutable_point, {5.0, 3.0}, kTolerance, test_description, "operator+= vector");
+  mutable_point -= Vector{2.0, 2.0};
+  require_components_near<2>(mutable_point, {3.0, 1.0}, kTolerance, test_description, "operator-= vector");
 
-  Point<2, double> q{3.0, 1.0};
-  Vector<2, double> difference = q - p;
-  require_components_near<2>(difference, {0.0, -3.0}, kTolerance, "Point<2> difference operator");
+  Point q{3.0, 1.0};
+  Vector difference = q - p;
+  require_components_near<2>(difference, {0.0, -3.0}, kTolerance, test_description, "difference operator");
 
-  require(!(q != q), "Point<2> equality");
-  require(p != q, "Point<2> inequality");
+  require(!(q != q), test_description, "equality");
+  require(p != q, test_description, "inequality");
 }
 
 void test_point_3d()
 {
-  using math::Direction;
-  using math::Point;
-  using math::Vector;
+  char const* test_description = "Point<3>";
 
-  Point<3, double> p{1.0, 2.0, 3.0};
-  require_components_near<3>(p, {1.0, 2.0, 3.0}, kTolerance, "Point<3> initial values");
+  using Point = math::Point<3>;
+  using Direction = math::Direction<3>;
+  using Vector = math::Vector<3>;
+
+  Point p{1.0, 2.0, 3.0};
+  require_components_near<3>(p, {1.0, 2.0, 3.0}, kTolerance, test_description, "initial values");
 
   p.eigen()(0) = 4.0;
   p.eigen()(1) = 5.0;
   p.eigen()(2) = 6.0;
-  require_components_near<3>(p, {4.0, 5.0, 6.0}, kTolerance, "Point<3> eigen write access");
+  require_components_near<3>(p, {4.0, 5.0, 6.0}, kTolerance, test_description, "eigen write access");
 
-  require_near(static_cast<Point<3, double> const&>(p).x(), 4.0, kTolerance, "Point<3> x() const");
-  require_near(static_cast<Point<3, double> const&>(p).y(), 5.0, kTolerance, "Point<3> y() const");
-  require_near(static_cast<Point<3, double> const&>(p).z(), 6.0, kTolerance, "Point<3> z() const");
+  require_near(static_cast<Point const&>(p).x(), 4.0, kTolerance, test_description, "x() const");
+  require_near(static_cast<Point const&>(p).y(), 5.0, kTolerance, test_description, "y() const");
+  require_near(static_cast<Point const&>(p).z(), 6.0, kTolerance, test_description, "z() const");
 
-  Direction<3, double> dz{Point<3, double>{0.0, 0.0, 0.0}, Point<3, double>{0.0, 0.0, 1.0}};
-  Vector<3, double> shift{1.0, -2.0, 0.5};
+  Direction dz{Point{0.0, 0.0, 0.0}, Point{0.0, 0.0, 1.0}};
+  Vector shift{1.0, -2.0, 0.5};
 
-  Point<3, double> translated = p + dz;
-  require_components_near<3>(translated, {4.0, 5.0, 7.0}, kTolerance, "Point<3> operator+(direction)");
+  Point translated = p + dz;
+  require_components_near<3>(translated, {4.0, 5.0, 7.0}, kTolerance, test_description, "operator+(direction)");
 
   translated = p + shift;
-  require_components_near<3>(translated, {5.0, 3.0, 6.5}, kTolerance, "Point<3> operator+(vector)");
+  require_components_near<3>(translated, {5.0, 3.0, 6.5}, kTolerance, test_description, "operator+(vector)");
 
   translated = p - shift;
-  require_components_near<3>(translated, {3.0, 7.0, 5.5}, kTolerance, "Point<3> operator-(vector)");
+  require_components_near<3>(translated, {3.0, 7.0, 5.5}, kTolerance, test_description, "operator-(vector)");
 
-  Point<3, double> mutable_point = p;
+  Point mutable_point = p;
   mutable_point += dz;
-  require_components_near<3>(mutable_point, {4.0, 5.0, 7.0}, kTolerance, "Point<3> operator+= direction");
+  require_components_near<3>(mutable_point, {4.0, 5.0, 7.0}, kTolerance, test_description, "operator+= direction");
   mutable_point += shift;
-  require_components_near<3>(mutable_point, {5.0, 3.0, 7.5}, kTolerance, "Point<3> operator+= vector");
+  require_components_near<3>(mutable_point, {5.0, 3.0, 7.5}, kTolerance, test_description, "operator+= vector");
   mutable_point -= shift;
-  require_components_near<3>(mutable_point, {4.0, 5.0, 7.0}, kTolerance, "Point<3> operator-= vector");
+  require_components_near<3>(mutable_point, {4.0, 5.0, 7.0}, kTolerance, test_description, "operator-= vector");
 
-  Point<3, double> q{4.0, 5.0, 7.0};
-  Vector<3, double> difference = q - p;
-  require_components_near<3>(difference, {0.0, 0.0, 1.0}, kTolerance, "Point<3> difference operator");
+  Point q{4.0, 5.0, 7.0};
+  Vector difference = q - p;
+  require_components_near<3>(difference, {0.0, 0.0, 1.0}, kTolerance, test_description, "difference operator");
 
-  require(!(q != q), "Point<3> equality");
-  require(p != q, "Point<3> inequality");
+  require(!(q != q), test_description, "equality");
+  require(p != q, test_description, "inequality");
 }
 
 void test_vector_2d()
