@@ -253,16 +253,6 @@ void test_point(std::string test_description)
   require(p1 != p2, test_description, "inequality");
 }
 
-void test_point_2d()
-{
-  test_point<2>("Point<2>");
-}
-
-void test_point_3d()
-{
-  test_point<3>("Point<3>");
-}
-
 template<int N>
 void test_vector(std::string test_description)
 {
@@ -442,17 +432,6 @@ void test_vector(std::string test_description)
   require_components_near(base - v, {x3 - new_x, y3 - new_y, z3 - new_z}, kTolerance, test_description, "point - vector");
 }
 
-void test_vector_2d()
-{
-  test_vector<2>("Vector<2>");
-}
-
-void test_vector_3d()
-{
-  test_vector<3>("Vector<3>");
-}
-
-
 template<int N>
 void test_direction(std::string const& test_description)
 {
@@ -494,8 +473,11 @@ void test_direction(std::string const& test_description)
   double const diff_y = y2 - y1;
   double const diff_z = z2 - z1;
   double const diff_norm = make_norm<N>(diff_x, diff_y, diff_z);
+  double const from_points_x = diff_x / diff_norm;
+  double const from_points_y = diff_y / diff_norm;
+  double const from_points_z = diff_z / diff_norm;
   require_components_near(from_points,
-                          {diff_x / diff_norm, diff_y / diff_norm, diff_z / diff_norm},
+                          {from_points_x, from_points_y, from_points_z},
                           kTolerance,
                           test_description,
                           "constructor from two points");
@@ -505,8 +487,11 @@ void test_direction(std::string const& test_description)
   Point const point_only = make<Point>(single_x, single_y, single_z);
   Direction const from_point_only{point_only};
   double const point_norm = make_norm<N>(single_x, single_y, single_z);
+  double const from_point_only_x = single_x / point_norm;
+  double const from_point_only_y = single_y / point_norm;
+  double const from_point_only_z = single_z / point_norm;
   require_components_near(from_point_only,
-                          {single_x / point_norm, single_y / point_norm, single_z / point_norm},
+                          {from_point_only_x, from_point_only_y, from_point_only_z},
                           kTolerance,
                           test_description,
                           "constructor from point");
@@ -521,10 +506,11 @@ void test_direction(std::string const& test_description)
   double const segment_diff_y = segment_to_y - segment_from_y;
   double const segment_diff_z = segment_to_z - segment_from_z;
   double const segment_norm = make_norm<N>(segment_diff_x, segment_diff_y, segment_diff_z);
+  double const from_segment_x = segment_diff_x / segment_norm;
+  double const from_segment_y = segment_diff_y / segment_norm;
+  double const from_segment_z = segment_diff_z / segment_norm;
   require_components_near(from_segment,
-                          {segment_diff_x / segment_norm,
-                           segment_diff_y / segment_norm,
-                           segment_diff_z / segment_norm},
+                          {from_segment_x, from_segment_y, from_segment_z},
                           kTolerance,
                           test_description,
                           "constructor from line piece");
@@ -532,10 +518,10 @@ void test_direction(std::string const& test_description)
   //---------------------------------------------------------------------------
   // Constructor from a line.
   Point const base_point = make<Point>(line_point_x, line_point_y, line_point_z);
-  Line const line{base_point, from_points};
+  Line const line{base_point, from_point_only};
   Direction const from_line{line};
   require_components_near(from_line,
-                          {diff_x / diff_norm, diff_y / diff_norm, diff_z / diff_norm},
+                          {from_point_only_x, from_point_only_y, from_point_only_z},
                           kTolerance,
                           test_description,
                           "constructor from line");
@@ -543,15 +529,15 @@ void test_direction(std::string const& test_description)
   //---------------------------------------------------------------------------
   // Dot product.
   double dot_expected =
-    (diff_x / diff_norm) * (diff_x / diff_norm) +
-    (diff_y / diff_norm) * (diff_y / diff_norm);
+    from_points_x * from_point_only_x +
+    from_points_y * from_point_only_y;
   if constexpr (N == 3)
-    dot_expected += (diff_z / diff_norm) * (diff_z / diff_norm);
+    dot_expected += from_points_z * from_point_only_z;
   require_near(from_points.dot(from_line), dot_expected, kTolerance, test_description, "dot product");
 
   //---------------------------------------------------------------------------
   // Angle conversion.
-  double const expected_angle = std::atan2(diff_y / diff_norm, diff_x / diff_norm);
+  double const expected_angle = std::atan2(from_points_y, from_points_x);
   require_near(from_points.as_angle(), expected_angle, kTolerance, test_description, "as_angle");
 
   if constexpr (N == 2)
@@ -636,12 +622,15 @@ void test_line_piece(std::string const& test_description)
   double const delta_y = to_y - from_y;
   double const delta_z = to_z - from_z;
   double const expected_norm = make_norm<N>(delta_x, delta_y, delta_z);
+  double const segment_direction_x = delta_x / expected_norm;
+  double const segment_direction_y = delta_y / expected_norm;
+  double const segment_direction_z = delta_z / expected_norm;
   require_near(segment.norm(), expected_norm, kTolerance, test_description, "norm()");
 
   //---------------------------------------------------------------------------
   // direction().
   require_components_near(segment.direction(),
-                          {delta_x / expected_norm, delta_y / expected_norm, delta_z / expected_norm},
+                          {segment_direction_x, segment_direction_y, segment_direction_z},
                           kTolerance,
                           test_description,
                           "direction()");
@@ -725,37 +714,6 @@ void test_line(std::string const& test_description)
   }
 }
 
-void test_direction_2d()
-{
-  test_direction<2>("Direction<2>");
-}
-
-void test_direction_3d()
-{
-  test_direction<3>("Direction<3>");
-}
-
-
-void test_line_piece_2d()
-{
-  test_line_piece<2>("LinePiece<2>");
-}
-
-void test_line_piece_3d()
-{
-  test_line_piece<3>("LinePiece<3>");
-}
-
-void test_line_2d()
-{
-  test_line<2>("Line<2>");
-}
-
-void test_line_3d()
-{
-  test_line<3>("Line<3>");
-}
-
 } // namespace
 
 int main()
@@ -764,16 +722,16 @@ int main()
 
   try
   {
-    test_point_2d();
-    test_point_3d();
-    test_vector_2d();
-    test_vector_3d();
-    test_direction_2d();
-    test_direction_3d();
-    test_line_piece_2d();
-    test_line_piece_3d();
-    test_line_2d();
-    test_line_3d();
+    test_point<2>("Point<2>");
+    test_point<3>("Point<3>");
+    test_vector<2>("Vector<2>");
+    test_vector<3>("Vector<3>");
+    test_direction<2>("Direction<2>");
+    test_direction<3>("Direction<3>");
+    test_line_piece<2>("LinePiece<2>");
+    test_line_piece<3>("LinePiece<3>");
+    test_line<2>("Line<2>");
+    test_line<3>("Line<3>");
   }
   catch (std::exception const& error)
   {
