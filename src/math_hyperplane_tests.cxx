@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -260,9 +261,6 @@ void run_dimension_tests()
   }
 }
 
-constexpr bool kRunDimension4 = false;
-constexpr bool kRunDimension7 = false;
-
 } // namespace
 
 int main()
@@ -271,10 +269,13 @@ int main()
   {
     run_dimension_tests<2>();
     run_dimension_tests<3>();
-    if constexpr (kRunDimension4)
+
+    bool running_locally = std::getenv("LIBCWD_RCFILE_OVERRIDE_NAME");
+    if (running_locally)
+    {
       run_dimension_tests<4>();
-    if constexpr (kRunDimension7)
       run_dimension_tests<7>();
+    }
   }
   catch (std::exception const& error)
   {
@@ -285,4 +286,3 @@ int main()
   std::cout << "Hyperplane tests passed" << std::endl;
   return 0;
 }
-
