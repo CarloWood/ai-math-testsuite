@@ -19,6 +19,7 @@
 namespace {
 
 constexpr double kTolerance = 1e-9;
+constexpr double kExact = 0.0;
 
 void require(bool condition, std::string const& test_description, std::string const& message)
 {
@@ -74,26 +75,73 @@ struct object_traits<math::Vector<N, T>> {
   using scalar_type = T;
 };
 
-template<typename Obj>
+template<typename Object>
 concept ConceptObjectDouble =
-  requires { object_traits<Obj>::dim; typename object_traits<Obj>::scalar_type; } &&
-  std::same_as<typename object_traits<Obj>::scalar_type, double>;
+  requires { object_traits<Object>::dim; typename object_traits<Object>::scalar_type; } &&
+  std::same_as<typename object_traits<Object>::scalar_type, double>;
 
-template<ConceptObjectDouble Obj>
-void require_components_near(Obj const& object,
-                             std::array<double, object_traits<Obj>::dim> const& expected,
+template<ConceptObjectDouble Object>
+void require_components_near(Object const& object,
+                             std::initializer_list<double> expected_list,
                              double tolerance,
                              std::string const& test_description,
                              std::string const& context)
 {
-  constexpr int N = static_cast<int>(object_traits<Obj>::dim);
-  for (int i = 0; i < N; ++i)
+  constexpr int N = static_cast<int>(object_traits<Object>::dim);
+  ASSERT(expected_list.size() >= N);
+  double const* expected = expected_list.begin();
+  for (int i = 0; i < N; ++i, ++expected)
   {
     std::ostringstream label;
     label << context << " component " << i;
-    require_near(object[i], expected[i], tolerance, test_description, label.str());
+    require_near(object[i], *expected, tolerance, test_description, label.str());
   }
 }
+
+template<ConceptObjectDouble Object>
+void require_components_equal(Object const& object,
+                              std::initializer_list<double> expected_list,
+                              std::string const& test_description,
+                              std::string const& context)
+{
+  require_components_near(object, expected_list, kExact, test_description, context);
+}
+
+template <int I, class... Ts>
+decltype(auto) get(Ts&&... ts)
+{
+  return std::get<I>(std::forward_as_tuple(ts...));
+}
+
+template<ConceptObjectDouble Object, typename... Args>
+auto make(Args&&... args)
+{
+  constexpr int N = static_cast<int>(object_traits<Object>::dim);
+  if constexpr (N == 2)
+    return Object{get<0>(args...), get<1>(args...)};
+  else
+    return Object{get<0>(args...), get<1>(args...), get<2>(args...)};
+};
+
+template<int N>
+auto make_array(double x, double y, double z)
+{
+  std::array<double, N> result{};
+  result[0] = x;
+  result[1] = y;
+  if constexpr (N == 3)
+    result[2] = z;
+  return result;
+};
+
+template<int N>
+auto make_norm(double x, double y, double z)
+{
+  double squared = x * x + y * y;
+  if constexpr (N == 3)
+    squared += z * z;
+  return std::sqrt(squared);
+};
 
 struct ConvertibleToDouble
 {
@@ -116,19 +164,7 @@ void test_point(std::string test_description)
 
   //---------------------------------------------------------------------------
   // Constructor and accessors.
-  Point p1;
-  {
-    if constexpr (N == 2)
-    {
-      Point tp1{cd_x, y};
-      p1 = tp1;
-    }
-    else
-    {
-      Point tp1{cd_x, y, z};
-      p1 = tp1;
-    }
-  }
+  Point p1 = make<Point>(cd_x, y, z);
   Point const& cp = p1;
 
   auto& e = p1.eigen();
@@ -174,10 +210,7 @@ void test_point(std::string test_description)
   if constexpr (N == 3)
     p1.z() = z1;
 
-  if constexpr (N == 2)
-    require_components_near(p1, {x1, y1}, kTolerance, test_description, "setters");
-  else
-    require_components_near(p1, {x1, y1, z1}, kTolerance, test_description, "setters");
+  require_components_equal(p1, {x1, y1, z1}, test_description, "setters");
 
   //---------------------------------------------------------------------------
   // operators
@@ -187,55 +220,34 @@ void test_point(std::string test_description)
   double dx = p2.x();
   double dy = p2.y();
   double dz = N == 3 ? p2[2] : 0.0;
-  double const len = std::sqrt(dx * dx + dy * dy + dz * dz);
+  double const len = make_norm<N>(dx, dy, dz);
   dx /= len;
   dy /= len;
   dz /= len;
 
   // Add Direction to a Point.
   Point translated = p1 + d2;
-  if constexpr (N == 2)
-    require_components_near(translated, {x1 + dx, y1 + dy}, kTolerance, test_description, "operator+(direction)");
-  else
-    require_components_near(translated, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator+(direction)");
+  require_components_near(translated, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator+(direction)");
 
   // Use p2 as a Vector.
   Vector const shift{p2};
 
   translated = p1 + shift;
-  if constexpr (N == 2)
-    require_components_near(translated, {x1 + x2, y1 + y2}, kTolerance, test_description, "operator+(vector)");
-  else
-    require_components_near(translated, {x1 + x2, y1 + y2, z1 + z2}, kTolerance, test_description, "operator+(vector)");
+  require_components_near(translated, {x1 + x2, y1 + y2, z1 + z2}, kTolerance, test_description, "operator+(vector)");
 
   translated = p1 - shift;
-  if constexpr (N == 2)
-    require_components_near(translated, {x1 - x2, y1 - y2}, kTolerance, test_description, "operator-(vector)");
-  else
-    require_components_near(translated, {x1 - x2, y1 - y2, z1 - z2}, kTolerance, test_description, "operator-(vector)");
+  require_components_near(translated, {x1 - x2, y1 - y2, z1 - z2}, kTolerance, test_description, "operator-(vector)");
 
   Point mutable_point = p1;
   mutable_point += d2;
-  if constexpr (N == 2)
-    require_components_near(mutable_point, {x1 + dx, y1 + dy}, kTolerance, test_description, "operator+= direction");
-  else
-    require_components_near(mutable_point, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator+= direction");
+  require_components_near(mutable_point, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator+= direction");
   mutable_point += shift;
-  if constexpr (N == 2)
-    require_components_near(mutable_point, {x1 + dx + x2, y1 + dy + y2}, kTolerance, test_description, "operator+= vector");
-  else
-    require_components_near(mutable_point, {x1 + dx + x2, y1 + dy + y2, z1 + dz + z2}, kTolerance, test_description, "operator+= vector");
+  require_components_near(mutable_point, {x1 + dx + x2, y1 + dy + y2, z1 + dz + z2}, kTolerance, test_description, "operator+= vector");
   mutable_point -= shift;
-  if constexpr (N == 2)
-    require_components_near(mutable_point, {x1 + dx, y1 + dy}, kTolerance, test_description, "operator-= vector");
-  else
-    require_components_near(mutable_point, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator-= vector");
+  require_components_near(mutable_point, {x1 + dx, y1 + dy, z1 + dz}, kTolerance, test_description, "operator-= vector");
 
   Vector difference = p1 - p2;
-  if constexpr (N == 2)
-    require_components_near(difference, {x1 - x2, y1 - y2}, kTolerance, test_description, "difference operator");
-  else
-    require_components_near(difference, {x1 - x2, y1 - y2, z1 - z2}, kTolerance, test_description, "difference operator");
+  require_components_near(difference, {x1 - x2, y1 - y2, z1 - z2}, kTolerance, test_description, "difference operator");
 
   require(!(p1 != p1), test_description, "equality");
   require(p1 != p2, test_description, "inequality");
@@ -251,7 +263,6 @@ void test_point_3d()
   test_point<3>("Point<3>");
 }
 
-
 template<int N>
 void test_vector(std::string test_description)
 {
@@ -259,40 +270,6 @@ void test_vector(std::string test_description)
   using Direction = math::Direction<N>;
   using Point = math::Point<N>;
   using LinePiece = math::LinePiece<N>;
-
-  auto make_point = [](double x, double y, double z)
-  {
-    if constexpr (N == 2)
-      return Point{x, y};
-    else
-      return Point{x, y, z};
-  };
-
-  auto make_vector = [](double x, double y, double z)
-  {
-    if constexpr (N == 2)
-      return Vector{x, y};
-    else
-      return Vector{x, y, z};
-  };
-
-  auto make_array = [](double x, double y, double z)
-  {
-    std::array<double, N> result{};
-    result[0] = x;
-    result[1] = y;
-    if constexpr (N == 3)
-      result[2] = z;
-    return result;
-  };
-
-  auto make_norm = [](double x, double y, double z)
-  {
-    double squared = x * x + y * y;
-    if constexpr (N == 3)
-      squared += z * z;
-    return std::sqrt(squared);
-  };
 
   double const x1 = 1.4829374;
   double const y1 = -2.7138465;
@@ -316,42 +293,42 @@ void test_vector(std::string test_description)
   double const eigen_z = -1.9473825;
   double const scalar = 1.7325;
 
-  Point const start_point = make_point(sx, sy, sz);
-  Point const end_point = make_point(ex, ey, ez);
+  Point const start_point = make<Point>(sx, sy, sz);
+  Point const end_point = make<Point>(ex, ey, ez);
 
   double const dx = ex - sx;
   double const dy = ey - sy;
   double const dz = ez - sz;
-  double const delta_norm = make_norm(dx, dy, dz);
+  double const delta_norm = make_norm<N>(dx, dy, dz);
 
   // Constructor from component values.
-  Vector v = make_vector(x1, y1, z1);
-  require_components_near(v, make_array(x1, y1, z1), kTolerance, test_description, "component constructor");
+  Vector v = make<Vector>(x1, y1, z1);
+  require_components_near(v, {x1, y1, z1}, kTolerance, test_description, "component constructor");
 
   // Constructor from a Direction and length.
   double const direction_length = delta_norm * 0.642713;
   Direction const direction{start_point, end_point};
   Vector const from_direction{direction, direction_length};
   require_components_near(from_direction,
-                         make_array(dx * (direction_length / delta_norm),
-                                    dy * (direction_length / delta_norm),
-                                    dz * (direction_length / delta_norm)),
-                         kTolerance,
-                         test_description,
-                         "constructor(direction, length)");
+      {dx * (direction_length / delta_norm),
+       dy * (direction_length / delta_norm),
+       dz * (direction_length / delta_norm)},
+      kTolerance,
+      test_description,
+      "constructor(direction, length)");
 
   // Constructor from two Point objects.
   Vector const from_points{start_point, end_point};
-  require_components_near(from_points, make_array(dx, dy, dz), kTolerance, test_description, "constructor(point, point)");
+  require_components_near(from_points, {dx, dy, dz}, kTolerance, test_description, "constructor(point, point)");
 
   // Constructor from a single Point.
   Vector const from_point{end_point};
-  require_components_near(from_point, make_array(ex, ey, ez), kTolerance, test_description, "constructor(point)");
+  require_components_near(from_point, {ex, ey, ez}, kTolerance, test_description, "constructor(point)");
 
   // Constructor from a LinePiece.
   LinePiece const segment{start_point, end_point};
   Vector const from_segment{segment};
-  require_components_near(from_segment, make_array(dx, dy, dz), kTolerance, test_description, "constructor(line_piece)");
+  require_components_near(from_segment, {dx, dy, dz}, kTolerance, test_description, "constructor(line_piece)");
 
   // Constructor from eigen_type.
   typename Vector::eigen_type eigen_input;
@@ -360,7 +337,7 @@ void test_vector(std::string test_description)
   else
     eigen_input << eigen_x, eigen_y, eigen_z;
   Vector const from_eigen{eigen_input};
-  require_components_near(from_eigen, make_array(eigen_x, eigen_y, eigen_z), kTolerance, test_description, "constructor(eigen)");
+  require_components_near(from_eigen, {eigen_x, eigen_y, eigen_z}, kTolerance, test_description, "constructor(eigen)");
 
   // Mutable element access via operator[].
   double const new_x = -4.6138275;
@@ -370,7 +347,7 @@ void test_vector(std::string test_description)
   v[1] = new_y;
   if constexpr (N == 3)
     v[2] = new_z;
-  require_components_near(v, make_array(new_x, new_y, new_z), kTolerance, test_description, "operator[] write");
+  require_components_near(v, {new_x, new_y, new_z}, kTolerance, test_description, "operator[] write");
 
   // Const element access via operator[].
   Vector const& const_ref = v;
@@ -385,7 +362,7 @@ void test_vector(std::string test_description)
   if constexpr (N == 3)
     require_near(v.z(), new_z, kTolerance, test_description, "z()");
 
-  Vector const w = make_vector(x2, y2, z2);
+  Vector const w = make<Vector>(x2, y2, z2);
 
   // Dot product.
   double const expected_dot = new_x * x2 + new_y * y2 + (N == 3 ? new_z * z2 : 0.0);
@@ -400,16 +377,16 @@ void test_vector(std::string test_description)
   else
   {
     require_components_near(v.cross(w),
-                            make_array(new_y * z2 - new_z * y2,
-                                       new_z * x2 - new_x * z2,
-                                       new_x * y2 - new_y * x2),
-                            kTolerance,
-                            test_description,
-                            "cross");
+        {new_y * z2 - new_z * y2,
+         new_z * x2 - new_x * z2,
+         new_x * y2 - new_y * x2},
+        kTolerance,
+        test_description,
+        "cross");
   }
 
   // Direction conversion.
-  double const norm = make_norm(new_x, new_y, new_z);
+  double const norm = make_norm<N>(new_x, new_y, new_z);
   Direction const dir = v.direction();
   require_near(dir.x(), new_x / norm, kTolerance, test_description, "direction x");
   require_near(dir.y(), new_y / norm, kTolerance, test_description, "direction y");
@@ -423,46 +400,46 @@ void test_vector(std::string test_description)
 
   // Conversion to Point.
   Point const as_point = v.as_point();
-  require_components_near(as_point, make_array(new_x, new_y, new_z), kTolerance, test_description, "as_point");
+  require_components_near(as_point, {new_x, new_y, new_z}, kTolerance, test_description, "as_point");
 
   // NaN and infinity checks.
-  Vector const nan_vector = make_vector(std::numeric_limits<double>::quiet_NaN(), y3, z3);
+  Vector const nan_vector = make<Vector>(std::numeric_limits<double>::quiet_NaN(), y3, z3);
   require(nan_vector.isnan(), test_description, "isnan");
-  Vector const finite_vector = make_vector(x3, y3, z3);
+  Vector const finite_vector = make<Vector>(x3, y3, z3);
   require(finite_vector.isfinite(), test_description, "isfinite true");
-  Vector const infinite_vector = make_vector(std::numeric_limits<double>::infinity(), y3, z3);
+  Vector const infinite_vector = make<Vector>(std::numeric_limits<double>::infinity(), y3, z3);
   require(!infinite_vector.isfinite(), test_description, "isfinite false");
 
   // Rotations (2D only).
   if constexpr (N == 2)
   {
-    require_components_near(v.rotate_90_degrees(), make_array(-new_y, new_x, 0.0), kTolerance, test_description, "rotate_90_degrees");
-    require_components_near(v.rotate_180_degrees(), make_array(-new_x, -new_y, 0.0), kTolerance, test_description, "rotate_180_degrees");
-    require_components_near(v.rotate_270_degrees(), make_array(new_y, -new_x, 0.0), kTolerance, test_description, "rotate_270_degrees");
+    require_components_near(v.rotate_90_degrees(), {-new_y, new_x}, kTolerance, test_description, "rotate_90_degrees");
+    require_components_near(v.rotate_180_degrees(), {-new_x, -new_y}, kTolerance, test_description, "rotate_180_degrees");
+    require_components_near(v.rotate_270_degrees(), {new_y, -new_x}, kTolerance, test_description, "rotate_270_degrees");
   }
 
   // Compound assignment operators.
   Vector u = v;
   u += w;
-  require_components_near(u, make_array(new_x + x2, new_y + y2, new_z + z2), kTolerance, test_description, "operator+=");
+  require_components_near(u, {new_x + x2, new_y + y2, new_z + z2}, kTolerance, test_description, "operator+=");
   u -= w;
-  require_components_near(u, make_array(new_x, new_y, new_z), kTolerance, test_description, "operator-=");
+  require_components_near(u, {new_x, new_y, new_z}, kTolerance, test_description, "operator-=");
   u *= scalar;
-  require_components_near(u, make_array(new_x * scalar, new_y * scalar, new_z * scalar), kTolerance, test_description, "operator*=");
+  require_components_near(u, {new_x * scalar, new_y * scalar, new_z * scalar}, kTolerance, test_description, "operator*=");
   u /= scalar;
-  require_components_near(u, make_array(new_x, new_y, new_z), kTolerance, test_description, "operator/=");
+  require_components_near(u, {new_x, new_y, new_z}, kTolerance, test_description, "operator/=");
 
   // Binary arithmetic operators.
   Vector const divided = v / scalar;
-  require_components_near(divided, make_array(new_x / scalar, new_y / scalar, new_z / scalar), kTolerance, test_description, "operator/(scalar)");
-  require_components_near(v + w, make_array(new_x + x2, new_y + y2, new_z + z2), kTolerance, test_description, "operator+");
-  require_components_near(v - w, make_array(new_x - x2, new_y - y2, new_z - z2), kTolerance, test_description, "operator-");
-  require_components_near(scalar * v, make_array(scalar * new_x, scalar * new_y, scalar * new_z), kTolerance, test_description, "scalar multiplication");
+  require_components_near(divided, {new_x / scalar, new_y / scalar, new_z / scalar}, kTolerance, test_description, "operator/(scalar)");
+  require_components_near(v + w, {new_x + x2, new_y + y2, new_z + z2}, kTolerance, test_description, "operator+");
+  require_components_near(v - w, {new_x - x2, new_y - y2, new_z - z2}, kTolerance, test_description, "operator-");
+  require_components_near(scalar * v, {scalar * new_x, scalar * new_y, scalar * new_z}, kTolerance, test_description, "scalar multiplication");
 
   // Point and Vector interactions.
-  Point const base = make_point(x3, y3, z3);
-  require_components_near(base + v, make_array(x3 + new_x, y3 + new_y, z3 + new_z), kTolerance, test_description, "point + vector");
-  require_components_near(base - v, make_array(x3 - new_x, y3 - new_y, z3 - new_z), kTolerance, test_description, "point - vector");
+  Point const base = make<Point>(x3, y3, z3);
+  require_components_near(base + v, {x3 + new_x, y3 + new_y, z3 + new_z}, kTolerance, test_description, "point + vector");
+  require_components_near(base - v, {x3 - new_x, y3 - new_y, z3 - new_z}, kTolerance, test_description, "point - vector");
 }
 
 void test_vector_2d()
