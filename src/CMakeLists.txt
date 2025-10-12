@@ -12,6 +12,9 @@ target_link_libraries(bracket_zero_test AICxx::math ${AICXX_OBJECTS_LIST})
 add_executable(math_geometry_tests math_geometry_tests.cxx)
 target_link_libraries(math_geometry_tests AICxx::math ${AICXX_OBJECTS_LIST} Eigen3::Eigen)
 
+add_executable(math_hyperplane_tests math_hyperplane_tests.cxx)
+target_link_libraries(math_hyperplane_tests AICxx::math ${AICXX_OBJECTS_LIST} Eigen3::Eigen)
+
 add_executable(roots_test roots_test.cxx)
 target_link_libraries(roots_test AICxx::math ${AICXX_OBJECTS_LIST} Eigen3::Eigen)
 
