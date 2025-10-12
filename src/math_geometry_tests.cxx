@@ -452,153 +452,308 @@ void test_vector_3d()
   test_vector<3>("Vector<3>");
 }
 
+
+template<int N>
+void test_direction(std::string const& test_description)
+{
+  using Direction = math::Direction<N>;
+  using Line = math::Line<N>;
+  using LinePiece = math::LinePiece<N>;
+  using Point = math::Point<N>;
+
+  double const angle_value = 1.2743812934672198;
+  double const x1 = -0.338451927341;
+  double const y1 = 2.19453123741;
+  double const z1 = -1.83452987412;
+  double const x2 = 1.18234752341;
+  double const y2 = -0.71325894732;
+  double const z2 = 0.95234712853;
+  double const single_x = -0.67123984512;
+  double const single_y = 0.44231589743;
+  double const single_z = -1.25123987431;
+  double const segment_from_x = -0.52734987123;
+  double const segment_from_y = 0.38421598273;
+  double const segment_from_z = -0.91254378214;
+  double const segment_to_x = 0.69321734981;
+  double const segment_to_y = -0.18243798231;
+  double const segment_to_z = 0.41235678294;
+  double const line_point_x = 0.21843987123;
+  double const line_point_y = -1.84352987341;
+  double const line_point_z = 0.74231578293;
+  double const zero = 0.0;
+  double const one = 1.0;
+  double const minus_one = -1.0;
+
+  //---------------------------------------------------------------------------
+  // Constructor from two points.
+  Point const point_a = make<Point>(x1, y1, z1);
+  Point const point_b = make<Point>(x2, y2, z2);
+  Direction const from_points{point_a, point_b};
+
+  double const diff_x = x2 - x1;
+  double const diff_y = y2 - y1;
+  double const diff_z = z2 - z1;
+  double const diff_norm = make_norm<N>(diff_x, diff_y, diff_z);
+  require_components_near(from_points,
+                          {diff_x / diff_norm, diff_y / diff_norm, diff_z / diff_norm},
+                          kTolerance,
+                          test_description,
+                          "constructor from two points");
+
+  //---------------------------------------------------------------------------
+  // Constructor from a single point.
+  Point const point_only = make<Point>(single_x, single_y, single_z);
+  Direction const from_point_only{point_only};
+  double const point_norm = make_norm<N>(single_x, single_y, single_z);
+  require_components_near(from_point_only,
+                          {single_x / point_norm, single_y / point_norm, single_z / point_norm},
+                          kTolerance,
+                          test_description,
+                          "constructor from point");
+
+  //---------------------------------------------------------------------------
+  // Constructor from a line piece.
+  Point const segment_from = make<Point>(segment_from_x, segment_from_y, segment_from_z);
+  Point const segment_to = make<Point>(segment_to_x, segment_to_y, segment_to_z);
+  LinePiece const segment{segment_from, segment_to};
+  Direction const from_segment{segment};
+  double const segment_diff_x = segment_to_x - segment_from_x;
+  double const segment_diff_y = segment_to_y - segment_from_y;
+  double const segment_diff_z = segment_to_z - segment_from_z;
+  double const segment_norm = make_norm<N>(segment_diff_x, segment_diff_y, segment_diff_z);
+  require_components_near(from_segment,
+                          {segment_diff_x / segment_norm,
+                           segment_diff_y / segment_norm,
+                           segment_diff_z / segment_norm},
+                          kTolerance,
+                          test_description,
+                          "constructor from line piece");
+
+  //---------------------------------------------------------------------------
+  // Constructor from a line.
+  Point const base_point = make<Point>(line_point_x, line_point_y, line_point_z);
+  Line const line{base_point, from_points};
+  Direction const from_line{line};
+  require_components_near(from_line,
+                          {diff_x / diff_norm, diff_y / diff_norm, diff_z / diff_norm},
+                          kTolerance,
+                          test_description,
+                          "constructor from line");
+
+  //---------------------------------------------------------------------------
+  // Dot product.
+  double dot_expected =
+    (diff_x / diff_norm) * (diff_x / diff_norm) +
+    (diff_y / diff_norm) * (diff_y / diff_norm);
+  if constexpr (N == 3)
+    dot_expected += (diff_z / diff_norm) * (diff_z / diff_norm);
+  require_near(from_points.dot(from_line), dot_expected, kTolerance, test_description, "dot product");
+
+  //---------------------------------------------------------------------------
+  // Angle conversion.
+  double const expected_angle = std::atan2(diff_y / diff_norm, diff_x / diff_norm);
+  require_near(from_points.as_angle(), expected_angle, kTolerance, test_description, "as_angle");
+
+  if constexpr (N == 2)
+  {
+    //-------------------------------------------------------------------------
+    // Constructor from angle and accessors.
+    Direction const from_angle{angle_value};
+    double const cos_angle = std::cos(angle_value);
+    double const sin_angle = std::sin(angle_value);
+    require_components_near(from_angle,
+                            {cos_angle, sin_angle, zero},
+                            kTolerance,
+                            test_description,
+                            "constructor from angle");
+
+    //-------------------------------------------------------------------------
+    // normal().
+    Direction const normal = from_angle.normal();
+    require_components_near(normal,
+                            {-sin_angle, cos_angle, zero},
+                            kTolerance,
+                            test_description,
+                            "normal()");
+
+    //-------------------------------------------------------------------------
+    // inverse().
+    Direction const inverse = from_angle.inverse();
+    require_components_near(inverse,
+                            {-cos_angle, -sin_angle, zero},
+                            kTolerance,
+                            test_description,
+                            "inverse()");
+
+    //-------------------------------------------------------------------------
+    // normal_inverse().
+    Direction const normal_inverse = from_angle.normal_inverse();
+    require_components_near(normal_inverse,
+                            {sin_angle, -cos_angle, zero},
+                            kTolerance,
+                            test_description,
+                            "normal_inverse()");
+
+    //-------------------------------------------------------------------------
+    // dot().
+    Direction const& right = Direction::right;
+    double const dot_with_right = cos_angle * right[0] + sin_angle * right[1];
+    require_near(from_angle.dot(right), dot_with_right, kTolerance, test_description, "dot with right");
+
+    //-------------------------------------------------------------------------
+    // Axis aligned constants.
+    require_components_near(Direction::up, {zero, one, zero}, kTolerance, test_description, "up");
+    require_components_near(Direction::down, {zero, minus_one, zero}, kTolerance, test_description, "down");
+    require_components_near(Direction::left, {minus_one, zero, zero}, kTolerance, test_description, "left");
+    require_components_near(Direction::right, {one, zero, zero}, kTolerance, test_description, "right");
+  }
+}
+
+template<int N>
+void test_line_piece(std::string const& test_description)
+{
+  using LinePiece = math::LinePiece<N>;
+  using Point = math::Point<N>;
+
+  double const from_x = -0.84123984512;
+  double const from_y = 0.31245789341;
+  double const from_z = -1.2841293475;
+  double const to_x = 1.27453782341;
+  double const to_y = -0.52431987412;
+  double const to_z = 0.71345872341;
+
+  //---------------------------------------------------------------------------
+  // Constructor and from()/to() accessors.
+  Point const from_point = make<Point>(from_x, from_y, from_z);
+  Point const to_point = make<Point>(to_x, to_y, to_z);
+  LinePiece const segment{from_point, to_point};
+  require_components_near(segment.from(), {from_x, from_y, from_z}, kTolerance, test_description, "from()");
+  require_components_near(segment.to(), {to_x, to_y, to_z}, kTolerance, test_description, "to()");
+
+  //---------------------------------------------------------------------------
+  // norm().
+  double const delta_x = to_x - from_x;
+  double const delta_y = to_y - from_y;
+  double const delta_z = to_z - from_z;
+  double const expected_norm = make_norm<N>(delta_x, delta_y, delta_z);
+  require_near(segment.norm(), expected_norm, kTolerance, test_description, "norm()");
+
+  //---------------------------------------------------------------------------
+  // direction().
+  require_components_near(segment.direction(),
+                          {delta_x / expected_norm, delta_y / expected_norm, delta_z / expected_norm},
+                          kTolerance,
+                          test_description,
+                          "direction()");
+}
+
+template<int N>
+void test_line(std::string const& test_description)
+{
+  using Direction = math::Direction<N>;
+  using Line = math::Line<N>;
+  using Point = math::Point<N>;
+
+  double const intersection_x = -0.41235897231;
+  double const intersection_y = 0.91234782941;
+  double const intersection_z = -1.12458723914;
+  double const dir1_dx = 0.68123984723;
+  double const dir1_dy = -0.43218973412;
+  double const dir1_dz = 0.29341872341;
+  double const offset1 = -0.76234987123;
+  double const dir2_dx = -0.38412987342;
+  double const dir2_dy = -0.59124873214;
+  double const dir2_dz = 0.71235897431;
+  double const offset2 = 0.54873912873;
+
+  double const line_point_x = intersection_x + offset1 * dir1_dx;
+  double const line_point_y = intersection_y + offset1 * dir1_dy;
+  double const line_point_z = intersection_z + offset1 * dir1_dz;
+  double const line_point_next_x = line_point_x + dir1_dx;
+  double const line_point_next_y = line_point_y + dir1_dy;
+  double const line_point_next_z = line_point_z + dir1_dz;
+
+  Point const base_point = make<Point>(line_point_x, line_point_y, line_point_z);
+  Point const forward_point = make<Point>(line_point_next_x, line_point_next_y, line_point_next_z);
+  Direction const direction{base_point, forward_point};
+  Line const line{base_point, direction};
+
+  //---------------------------------------------------------------------------
+  // point().
+  require_components_near(line.point(), {line_point_x, line_point_y, line_point_z}, kTolerance, test_description, "point()");
+
+  //---------------------------------------------------------------------------
+  // direction().
+  double const dir1_norm = make_norm<N>(dir1_dx, dir1_dy, dir1_dz);
+  require_components_near(line.direction(),
+                          {dir1_dx / dir1_norm, dir1_dy / dir1_norm, dir1_dz / dir1_norm},
+                          kTolerance,
+                          test_description,
+                          "direction()");
+
+  //---------------------------------------------------------------------------
+  // Conversion to Direction.
+  Direction const& as_direction = line;
+  require(&as_direction == &line.direction(), test_description, "conversion to direction");
+
+  if constexpr (N == 2)
+  {
+    //-------------------------------------------------------------------------
+    // intersection_with().
+    double const other_point_x = intersection_x + offset2 * dir2_dx;
+    double const other_point_y = intersection_y + offset2 * dir2_dy;
+    double const other_point_z = intersection_z + offset2 * dir2_dz;
+    double const other_point_next_x = other_point_x + dir2_dx;
+    double const other_point_next_y = other_point_y + dir2_dy;
+    double const other_point_next_z = other_point_z + dir2_dz;
+
+    Point const other_point = make<Point>(other_point_x, other_point_y, other_point_z);
+    Point const other_forward = make<Point>(other_point_next_x, other_point_next_y, other_point_next_z);
+    Direction const other_direction{other_point, other_forward};
+    Line const other_line{other_point, other_direction};
+
+    double const delta_x = other_point_x - line_point_x;
+    double const delta_y = other_point_y - line_point_y;
+    double const determinant = dir1_dx * dir2_dy - dir1_dy * dir2_dx;
+    double const t1 = (delta_x * dir2_dy - delta_y * dir2_dx) / determinant;
+    double const expected_x = line_point_x + t1 * dir1_dx;
+    double const expected_y = line_point_y + t1 * dir1_dy;
+    double const expected_z = line_point_z + t1 * dir1_dz;
+
+    Point const intersection = line.intersection_with(other_line);
+    require_components_near(intersection, {expected_x, expected_y, expected_z}, kTolerance, test_description, "intersection_with()");
+  }
+}
+
 void test_direction_2d()
 {
-  char const* test_description = "Direction<2>";
-
-  using Direction = math::Direction<2>;
-  using Line = math::Line<2>;
-  using LinePiece = math::LinePiece<2>;
-  using Point = math::Point<2>;
-
-  Direction angle{std::numbers::pi_v<double> / 4.0};
-  double expected = std::sqrt(0.5);
-  require_near(angle.x(), expected, kTolerance, test_description, "from angle x");
-  require_near(angle.y(), expected, kTolerance, test_description, "from angle y");
-
-  Direction from_points{Point{0.0, 0.0}, Point{0.0, 5.0}};
-  require_components_near(from_points, {0.0, 1.0}, kTolerance, test_description, "from points");
-
-  Direction from_point_only{Point{0.0, -3.0}};
-  require_components_near(from_point_only, {0.0, -1.0}, kTolerance, test_description, "from single point");
-
-  LinePiece segment{Point{0.0, 0.0}, Point{1.0, 0.0}};
-  Direction from_segment{segment};
-  require_components_near(from_segment, {1.0, 0.0}, kTolerance, test_description, "from segment");
-
-  Line line{Point{0.0, 0.0}, angle};
-  Direction from_line{line};
-  require_components_near(from_line, {angle.x(), angle.y()}, kTolerance, test_description, "from line");
-
-  require_near(angle.dot(Direction::right), angle.x(), kTolerance, test_description, "dot");
-
-  require_near(from_points.as_angle(), std::numbers::pi_v<double> / 2.0, kTolerance, test_description, "as_angle");
-
-  Direction normal = angle.normal();
-  require_components_near(normal, {-expected, expected}, kTolerance, test_description, "normal");
-
-  Direction inverse = angle.inverse();
-  require_components_near(inverse, {-angle.x(), -angle.y()}, kTolerance, test_description, "inverse");
-
-  Direction normal_inverse = angle.normal_inverse();
-  require_components_near(normal_inverse, {expected, -expected}, kTolerance, test_description, "normal_inverse");
-
-  require_components_near(Direction::up, {0.0, 1.0}, kTolerance, test_description, "up");
-  require_components_near(Direction::down, {0.0, -1.0}, kTolerance, test_description, "down");
-  require_components_near(Direction::left, {-1.0, 0.0}, kTolerance, test_description, "left");
-  require_components_near(Direction::right, {1.0, 0.0}, kTolerance, test_description, "right");
+  test_direction<2>("Direction<2>");
 }
 
 void test_direction_3d()
 {
-  char const* test_description = "Direction<3>";
-
-  using Direction = math::Direction<3>;
-  using Line = math::Line<3>;
-  using Point = math::Point<3>;
-
-  Direction from_points{Point{0.0, 0.0, 0.0}, Point{1.0, 2.0, 2.0}};
-  double norm = std::sqrt(9.0);
-  require_components_near(from_points, {1.0 / norm, 2.0 / norm, 2.0 / norm}, kTolerance, test_description, "from points");
-
-  Direction from_point_only{Point{0.0, 0.0, -3.0}};
-  require_components_near(from_point_only, {0.0, 0.0, -1.0}, kTolerance, test_description, "from origin to point");
-
-  Line line{Point{1.0, 1.0, 1.0}, from_points};
-  Direction from_line{line};
-  require_components_near(from_line, {1.0 / norm, 2.0 / norm, 2.0 / norm}, kTolerance, test_description, "from line");
-
-  require_near(from_points.dot(from_line), 1.0, kTolerance, test_description, "dot");
-
-  require_near(from_points.as_angle(), std::atan2(2.0 / norm, 1.0 / norm), kTolerance, test_description, "as_angle");
+  test_direction<3>("Direction<3>");
 }
+
 
 void test_line_piece_2d()
 {
-  char const* test_description = "LinePiece<2>";
-
-  using LinePiece = math::LinePiece<2>;
-  using Point = math::Point<2>;
-
-  Point a{0.0, 0.0};
-  Point b{3.0, 4.0};
-  LinePiece segment{a, b};
-
-  require_components_near(segment.from(), {0.0, 0.0}, kTolerance, test_description, "from");
-  require_components_near(segment.to(), {3.0, 4.0}, kTolerance, test_description, "to");
-  require_near(segment.norm(), 5.0, kTolerance, test_description, "length");
-
-  auto direction = segment.direction();
-  require_components_near(direction, {0.6, 0.8}, kTolerance, test_description, "direction");
+  test_line_piece<2>("LinePiece<2>");
 }
 
 void test_line_piece_3d()
 {
-  char const* test_description = "LinePiece<3>";
-
-  using LinePiece = math::LinePiece<3>;
-  using Point = math::Point<3>;
-
-  Point a{0.0, 0.0, 0.0};
-  Point b{1.0, 2.0, 2.0};
-  LinePiece segment{a, b};
-
-  require_near(segment.norm(), 3.0, kTolerance, test_description, "length");
-
-  auto direction = segment.direction();
-  require_components_near(direction, {1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0}, kTolerance, test_description, "direction");
+  test_line_piece<3>("LinePiece<3>");
 }
 
 void test_line_2d()
 {
-  char const* test_description = "Line<2>";
-
-  using Direction = math::Direction<2>;
-  using Line = math::Line<2>;
-  using Point = math::Point<2>;
-
-  Direction slope{Point{0.0, 0.0}, Point{1.0, 2.0}};
-  Point point{1.0, 1.0};
-  Line line{point, slope};
-
-  require_components_near(line.point(), {1.0, 1.0}, kTolerance, test_description, "point");
-  require_components_near(line.direction(), {slope.x(), slope.y()}, kTolerance, test_description, "direction");
-
-  Direction const& as_direction = line;
-  require(&as_direction == &line.direction(), test_description, "conversion to direction");
-
-  Line other{Point{0.0, 2.0}, Direction::down};
-  Point intersection = line.intersection_with(other);
-  require_components_near(intersection, {0.0, -1.0}, kTolerance, test_description, "intersection");
+  test_line<2>("Line<2>");
 }
 
 void test_line_3d()
 {
-  char const* test_description = "Line<3>";
-
-  using Direction = math::Direction<3>;
-  using Line = math::Line<3>;
-  using Point = math::Point<3>;
-
-  Direction direction{Point{0.0, 0.0, 0.0}, Point{0.0, 0.0, 1.0}};
-  Point point{1.0, 2.0, 3.0};
-  Line line{point, direction};
-
-  require_components_near(line.point(), {1.0, 2.0, 3.0}, kTolerance, test_description, "point");
-  require_components_near(line.direction(), {0.0, 0.0, 1.0}, kTolerance, test_description, "direction");
-
-  Direction const& as_direction = line;
-  require(&as_direction == &line.direction(), test_description, "conversion to direction");
+  test_line<3>("Line<3>");
 }
 
 } // namespace
