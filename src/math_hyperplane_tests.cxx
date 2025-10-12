@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "debug.h"
 
 namespace {
 
@@ -143,10 +144,11 @@ void require_vector_near(vector_type<N> const& actual,
 }
 
 template<int N>
-vector_type<N> find_tangent(vector_type<N> const& normal,
-                            std::vector<vector_type<N>> const& candidates)
+std::vector<vector_type<N>> find_tangents(int n, vector_type<N> const& normal, std::vector<vector_type<N>> const& candidates)
 {
+  ASSERT(n < candidates.size());
   double const normal_norm_squared = normal.norm_squared();
+  std::vector<vector_type<N>> tangents;
   for (auto const& candidate : candidates)
   {
     if (candidate.norm() == 0.0)
@@ -154,19 +156,27 @@ vector_type<N> find_tangent(vector_type<N> const& normal,
     double const projection_length = candidate.dot(normal) / normal_norm_squared;
     vector_type<N> tangent = candidate - projection_length * normal;
     if (tangent.norm() > 1e-8)
-      return tangent;
+    {
+      tangents.push_back(tangent);
+      if (tangents.size() == n)
+        return tangents;
+    }
   }
-  return make_zero<N>();
+
+  ASSERT(false);
+  AI_NEVER_REACHED
 }
 
 template<int N>
 void run_dimension_tests()
 {
+  Dout(dc::notice, "Running run_dimension_tests<" << N << ">()...");
+
   auto const normals_all = generate_vectors<N>(true);
   auto const points_all = generate_vectors<N>(false);
 
-  constexpr std::size_t kMaxNormals = (N == 2) ? 64 : 128;
-  constexpr std::size_t kMaxPoints = (N == 2) ? 64 : 128;
+  std::size_t kMaxNormals = std::min(normals_all.size(), 1000UL);
+  std::size_t kMaxPoints = std::min(points_all.size(), 1000UL);
 
   auto const normals = select_subset<N>(normals_all, kMaxNormals);
   auto const points = select_subset<N>(points_all, kMaxPoints);
@@ -177,13 +187,9 @@ void run_dimension_tests()
   for (auto const& normal : normals)
   {
     double const normal_norm = normal.norm();
-    if (normal_norm == 0.0)
-    {
-      ++normal_index;
-      continue;
-    }
+    ASSERT(normal_norm > 0.0);
 
-    vector_type<N> const unit_normal = normalized(normal);
+    vector_type<N> const unit_normal = normal / normal_norm;
     double const normal_norm_squared = normal_norm * normal_norm;
 
     int point_index = 0;
@@ -207,53 +213,51 @@ void run_dimension_tests()
       require_near(plane.signed_distance(origin_projection), 0.0,
                   description<N>(normal_index, point_index, "signed_distance(origin_projection)"));
 
-      vector_type<N> const tangent = find_tangent<N>(normal, points_all);
-      if (tangent.norm() == 0.0)
+      std::vector<vector_type<N>> const tangents = find_tangents<N>(10, normal, points_all);
+
+      for (vector_type<N> const& tangent : tangents)
       {
-        ++point_index;
-        continue;
+        vector_type<N> const other_point = base_point + tangent;
+        auto const other_context = description<N>(normal_index, point_index, "other point in plane");
+        require_near(plane.signed_distance(other_point), 0.0, other_context + " signed_distance");
+        require_vector_near<N>(plane.project(other_point), other_point, other_context + " project");
+
+        for (double const distance : kSignedDistances)
+        {
+          vector_type<N> const shifted = base_point + distance * unit_normal;
+          auto const shift_context = description<N>(normal_index, point_index, "shift along normal");
+
+          require_near(plane.signed_distance(shifted), distance,
+                       shift_context + " signed_distance");
+          require_near(plane.height_along_N(shifted), distance / normal_norm,
+                       shift_context + " height_along_N");
+          require_vector_near<N>(plane.project(shifted), base_point,
+                                  shift_context + " project onto base");
+
+          math::Sign const expected_side =
+              (std::abs(distance) < 1e-6) ? math::in_plane : (distance > 0.0 ? math::positive : math::negative);
+          require(plane.side(shifted) == expected_side, shift_context + " side");
+        }
+
+        vector_type<N> const mixed_point = other_point + 3.25 * unit_normal + 1.5 * tangent;
+        auto const mixed_context = description<N>(normal_index, point_index, "mixed offset");
+        double const mixed_height = plane.height_along_N(mixed_point);
+        vector_type<N> const projected_mixed = plane.project(mixed_point);
+        require_vector_near<N>(projected_mixed, other_point + 1.5 * tangent, mixed_context + " project");
+        require_near(mixed_height, 3.25 / normal_norm, mixed_context + " height_along_N");
+        require_near(plane.signed_distance(mixed_point), 3.25, mixed_context + " signed_distance");
+        require_vector_near<N>(projected_mixed + mixed_height * normal, mixed_point,
+                                mixed_context + " reconstruct from projection");
+        require_near(normal.dot(projected_mixed) + b, 0.0, mixed_context + " projection lies in plane");
+
+        vector_type<N> const far_positive = base_point + 12.0 * unit_normal;
+        vector_type<N> const far_negative = base_point - 7.0 * unit_normal;
+        auto const intersection_context = description<N>(normal_index, point_index, "intersection");
+        vector_type<N> const intersection = plane.intersection(far_negative, far_positive);
+        require_vector_near<N>(intersection, base_point, intersection_context + " intersection point");
+        require(plane.side(far_positive) == math::positive, intersection_context + " side positive");
+        require(plane.side(far_negative) == math::negative, intersection_context + " side negative");
       }
-
-      vector_type<N> const other_point = base_point + tangent;
-      auto const other_context = description<N>(normal_index, point_index, "other point in plane");
-      require_near(plane.signed_distance(other_point), 0.0, other_context + " signed_distance");
-      require_vector_near<N>(plane.project(other_point), other_point, other_context + " project");
-
-      for (double const distance : kSignedDistances)
-      {
-        vector_type<N> const shifted = base_point + distance * unit_normal;
-        auto const shift_context = description<N>(normal_index, point_index, "shift along normal");
-
-        require_near(plane.signed_distance(shifted), distance,
-                     shift_context + " signed_distance");
-        require_near(plane.height_along_N(shifted), distance / normal_norm,
-                     shift_context + " height_along_N");
-        require_vector_near<N>(plane.project(shifted), base_point,
-                                shift_context + " project onto base");
-
-        math::Sign const expected_side =
-            (std::abs(distance) < 1e-6) ? math::in_plane : (distance > 0.0 ? math::positive : math::negative);
-        require(plane.side(shifted) == expected_side, shift_context + " side");
-      }
-
-      vector_type<N> const mixed_point = other_point + 3.25 * unit_normal + 1.5 * tangent;
-      auto const mixed_context = description<N>(normal_index, point_index, "mixed offset");
-      double const mixed_height = plane.height_along_N(mixed_point);
-      vector_type<N> const projected_mixed = plane.project(mixed_point);
-      require_vector_near<N>(projected_mixed, other_point + 1.5 * tangent, mixed_context + " project");
-      require_near(mixed_height, 3.25 / normal_norm, mixed_context + " height_along_N");
-      require_near(plane.signed_distance(mixed_point), 3.25, mixed_context + " signed_distance");
-      require_vector_near<N>(projected_mixed + mixed_height * normal, mixed_point,
-                              mixed_context + " reconstruct from projection");
-      require_near(normal.dot(projected_mixed) + b, 0.0, mixed_context + " projection lies in plane");
-
-      vector_type<N> const far_positive = base_point + 12.0 * unit_normal;
-      vector_type<N> const far_negative = base_point - 7.0 * unit_normal;
-      auto const intersection_context = description<N>(normal_index, point_index, "intersection");
-      vector_type<N> const intersection = plane.intersection(far_negative, far_positive);
-      require_vector_near<N>(intersection, base_point, intersection_context + " intersection point");
-      require(plane.side(far_positive) == math::positive, intersection_context + " side positive");
-      require(plane.side(far_negative) == math::negative, intersection_context + " side negative");
 
       ++point_index;
     }
@@ -265,6 +269,8 @@ void run_dimension_tests()
 
 int main()
 {
+  Debug(NAMESPACE_DEBUG::init());
+
   try
   {
     run_dimension_tests<2>();
