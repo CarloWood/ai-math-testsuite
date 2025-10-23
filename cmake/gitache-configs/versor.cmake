@@ -1,8 +1,0 @@
-gitache_config(
-  GIT_REPOSITORY
-    "https://github.com/CarloWood/versor.git"
-  GIT_TAG
-    "devel"
-  CMAKE_ARGS
-    "-DBUILD_GRAPHICS=OFF -DBUILD_EXAMPLES=OFF -DUSE_DOUBLE_PRECISION=ON -DVERSOR_EXPORT_LEGACY_GLOBALS=OFF"
-)

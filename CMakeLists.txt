@@ -9,9 +9,23 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(FetchContent)
+
+# If a local gitache directory is present then use that rather than downloading one.
+if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/gitache/gateway.cmake)
+  # This will disable the use of the GIT_REPOSITORY/GIT_TAG below, and disable the
+  # FetchContent- download and update step. Instead, use the gitache directory as-is.
+  set(FETCHCONTENT_SOURCE_DIR_GITACHE "${CMAKE_CURRENT_LIST_DIR}/gitache" CACHE INTERNAL "" FORCE)
+endif ()
+
 # Use gitache for libcwd.
-set(GITACHE_PACKAGES libcwd_r versor)
-include(cwm4/cmake/StableGitache)
+set(GITACHE_PACKAGES libcwd_r)
+FetchContent_Declare(
+  gitache
+  GIT_REPOSITORY "https://github.com/CarloWood/gitache.git"
+  GIT_TAG        "master"
+)
+FetchContent_MakeAvailable(gitache)
 
 # This project uses aicxx modules.
 include(cwm4/cmake/AICxxProject NO_POLICY_SCOPE)
