@@ -1,10 +1,11 @@
 include(AICxxProject)
 
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3...<6.0 REQUIRED NO_MODULE)
 
 find_library(GMP_LIBRARY gmp)
 find_library(MPFR_LIBRARY mpfr)
 find_library(GLPK_LIBRARY glpk)
+find_package(versor REQUIRED CONFIG)
 
 add_executable(bracket_zero_test bracket_zero_test.cxx)
 target_link_libraries(bracket_zero_test AICxx::math ${AICXX_OBJECTS_LIST})
@@ -20,6 +21,9 @@ target_link_libraries(math_hyperblock_tests AICxx::math ${AICXX_OBJECTS_LIST} Ei
 
 add_executable(roots_test roots_test.cxx)
 target_link_libraries(roots_test AICxx::math ${AICXX_OBJECTS_LIST} Eigen3::Eigen)
+
+add_executable(hello_cga hello_cga.cxx)
+target_link_libraries(hello_cga versor::vsr)
 
 if (EnableCairoWindow)
 

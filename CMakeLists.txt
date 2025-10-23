@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Use gitache for libcwd.
-set(GITACHE_PACKAGES libcwd_r)
+set(GITACHE_PACKAGES libcwd_r versor)
 include(cwm4/cmake/StableGitache)
 
 # This project uses aicxx modules.
