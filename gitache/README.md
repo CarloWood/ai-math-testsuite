@@ -34,10 +34,28 @@ That will not update gitache automatically but simply use
 whatever you have checked out.
 
 Each package listed in `GITACHE_PACKAGES` must have a configuration
-file in the cmake cache variable `GITACHE_CONFIGS_DIR`, the default
-being `${CMAKE_SOURCE_DIR}/cmake/gitache-configs`, with the name
-`<package>.cmake`. See https://github.com/CarloWood/gitache-core for
-a description of the contents.
+file in one of the registered gitache configuration directories.  By
+default gitache looks in the cmake cache variable `GITACHE_CONFIGS_DIR`,
+which in turn defaults to `${CMAKE_SOURCE_DIR}/cmake/gitache-configs`,
+but additional directories can be registered.
+
+A submodule can call `gitache_require_packages` to request (extra)
+packages:
+
+```
+gitache_require_packages(foobar foobaz
+  # optional; defaults to cmake/gitache-configs
+  CONFIG_DIRS
+    cmake/extra-configs1
+    cmake/extra-configs2
+)
+```
+
+Note that `CONFIG_DIRS` must be the last argument; the package names must
+given first. The paths specified are relative the directory that the
+current `CMakeLists.txt` file resides in.
+
+See https://github.com/CarloWood/gitache-core for more information.
 
 ## Requirements
 
