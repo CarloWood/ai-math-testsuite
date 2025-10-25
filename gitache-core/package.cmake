@@ -17,6 +17,12 @@
 # gitache_package_HASH_CONTENT          - The string over which the hash is calculated (this is written to the DONE file). Contains semi-colons!
 # gitache_package_BOOTSTRAP_COMMAND     - A user defined command to run before configuration of a the package.
 
+if (NOT DEFINED GITACHE_CORE_SOURCE_DIR OR "${GITACHE_CORE_SOURCE_DIR}" STREQUAL "")
+  #  message(FATAL_ERROR "gitache-core/package.cmake: GITACHE_CORE_SOURCE_DIR is not set!")
+  set(ERROR_MESSAGE "gitache-core/package.cmake:22: GITACHE_CORE_SOURCE_DIR is not set!")
+  return()
+endif ()
+
 # This is an output variable.
 set(ERROR_MESSAGE False)
 
@@ -50,13 +56,31 @@ else()
 
   string(TOLOWER ${gitache_package_NAME} gitache_package_NAME_lc)
   FetchContent_GetProperties(${gitache_package_NAME})
+
   if(NOT ${gitache_package_NAME_lc}_POPULATED)
     # Unset CMAKE_GENERATOR while running FetchContent_MakeAvailable, so that it
     # uses the (platform) default generator (you can still pass a -G to its
     # CMAKE_ARGS of course.
     set(CMAKE_GENERATOR_STORE ${CMAKE_GENERATOR})
     unset(CMAKE_GENERATOR CACHE)
+
+    # FetchContent_MakeAvailable might do nothing even if the source tree is empty,
+    # because "stamp" files have been stored in the build directory of the super project.
+    if(NOT EXISTS "${FETCHCONTENT_BASE_DIR}/${gitache_package_NAME_lc}-src/.git")
+      set(_fc_stamp_dir "${CMAKE_BINARY_DIR}/CMakeFiles/fc-stamp/${gitache_package_NAME_lc}")
+      set(_fc_tmp_dir   "${CMAKE_BINARY_DIR}/CMakeFiles/fc-tmp/${gitache_package_NAME_lc}")
+      if(EXISTS "${_fc_stamp_dir}" OR EXISTS "${_fc_tmp_dir}")
+        message(STATUS "Warning: ${FETCHCONTENT_BASE_DIR}/${gitache_package_NAME_lc}-src/.git does not exist. Removing stamp files.")
+        file(REMOVE "${_fc_stamp_dir}/download.stamp"
+                    "${_fc_stamp_dir}/update.stamp"
+                    "${_fc_stamp_dir}/patch.stamp"
+                    "${_fc_stamp_dir}/gitache_package_versor-gitclone-lastrun.txt")
+        file(REMOVE_RECURSE "${_fc_tmp_dir}")
+      endif()
+    endif()
+
     # Populate the source and binary directories of this package.
+    Dout("Calling FetchContent_MakeAvailable(${gitache_package_NAME})")
     FetchContent_MakeAvailable(${gitache_package_NAME})
     set(CMAKE_GENERATOR "${CMAKE_GENERATOR_STORE}" CACHE INTERNAL "The projects generator")
     set(FETCHCONTENT_QUIET ON)

@@ -1,14 +1,17 @@
 ## Gitache package configuration files
 
 Each package listed in `GITACHE_PACKAGES` must come with a config
-file in `cmake/gitache-configs` in the root of the main project.
+file in one of the registered gitache configuration directories.
+By default gitache registers `${CMAKE_SOURCE_DIR}/cmake/gitache-configs`,
+but additional directories can be added at configure time with
+`gitache_register_config_dir(<absolute path>)`.
 
 For example if `myproject/CMakeLists.txt` contains the line
 
     set(GITACHE_PACKAGES foobar blah)
 
-then the files `myproject/cmake/gitache-configs/foobar.cmake` and
-`myproject/cmake/gitache-configs/blah.cmake` must exist.
+then the files `foobar.cmake` and `blah.cmake` must be available
+in a registered config directory (for example `${CMAKE_SOURCE_DIR}/cmake/gitache-configs/`).
 
 Their contents should be, for example,
 
@@ -43,6 +46,33 @@ for example configurations.
 Also, see https://github.com/CarloWood/ai-statefultask-testsuite/blob/master/CMakeLists.txt
 for an example of a project that uses gitache.
 
+## Registering packages from submodules
+
+Git submodules can require extra gitache packages, after the main project
+has already included gitache, using `gitache_require_packages`:
+
+```
+gitache_require_packages(
+    extra_package1
+    extra_package2
+  CONFIG_DIRS
+    cmake/extra-configs1    # Relative to ${CMAKE_CURRENT_SOURCE_DIR}.
+    ${CMAKE_CURRENT_LIST_DIR}/extra-configs2
+)
+```
+
+The `CONFIG_DIRS` is optional: gitache looks by default in `${CMAKE_CURRENT_SOURCE_DIR}/cmake/gitache-configs`,
+but if specified then it must be the last argument; the package names must given first.
+The paths specified are relative to the directory of the `CMakeLists.txt` that is doing the call.
+
+A submodule can also first register the directory that contains its gitache configuration
+files and then request the packages it needs:
+
+```
+gitache_register_config_dir("${CMAKE_CURRENT_LIST_DIR}/cmake/extra-configs")
+gitache_require_packages(versor)
+```
+
 ## Using a branch instead of SHA1
 
 In order to 'git update' a `GIT_TAG` branch (like "master" in the example above),
@@ -65,8 +95,8 @@ and want to support both (a gitache submodule being present, or not) you
 can use the first version given under `Basic usage` (see https://github.com/CarloWood/gitache)
 but add the following immediately after the `include(FetchContent)` line:
 
-    # If a local gitache submodule is present then use that rather than downloading one.
-    if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/gitache/.git)
+    # If a local gitache directory is present then use that rather than downloading one.
+    if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/gitache/gateway.cmake)
       # This will disable the use of the GIT_REPOSITORY/GIT_TAG below, and disable the
       # FetchContent- download and update step. Instead, use the gitache submodule as-is.
       set(FETCHCONTENT_SOURCE_DIR_GITACHE "${CMAKE_CURRENT_LIST_DIR}/gitache" CACHE INTERNAL "" FORCE)

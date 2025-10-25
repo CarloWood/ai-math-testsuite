@@ -27,6 +27,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(gitache)
 
+# At this point libcwd_r_ROOT should still be set!
+# If it is no longer set, then there is a bug in gitache.
+message(DEBUG "CMakeLists.txt: libcwd_r_ROOT = \"${libcwd_r_ROOT}\"")
+if (NOT DEFINED libcwd_r_ROOT OR "${libcwd_r_ROOT}" STREQUAL "")
+  #message(FATAL_ERROR "Codex: please fix the bug that libcwd_r_ROOT is no longer set here.")
+endif ()
+
 # This project uses aicxx modules.
 include(cwm4/cmake/AICxxProject NO_POLICY_SCOPE)
 

@@ -1,11 +1,11 @@
-string(ASCII 127 _high_char)
-set(_fake_escaped_semicolon ":${_high_char}${_high_char}${_high_char}")
-
 function(gitache_config)
   set(one GIT_TAG GIT_REPOSITORY GIT_REMOTE_NAME GIT_SHALLOW GIT_PROGRESS)
   set(multiple GIT_SUBMODULES GIT_CONFIG CONFIGURE_ARGS CMAKE_ARGS BOOTSTRAP_COMMAND)
 
   cmake_parse_arguments(PARSE_ARGV 0 ${gitache_package} "" "${one}" "${multiple}")
+
+  string(ASCII 127 _high_char)
+  set(_fake_escaped_semicolon ":${_high_char}${_high_char}${_high_char}")
 
   set(arguments_to_FetchContent_Declare)
   foreach (_arg ${one})
