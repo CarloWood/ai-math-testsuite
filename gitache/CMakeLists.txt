@@ -125,4 +125,8 @@ else ()
     endif ()
   endwhile ()
 endif ()
-message(STATUS "==> libcwd_r_ROOT = \"${libcwd_r_ROOT}\".")
+
+# Propagate the package_ROOT's to the parent.
+foreach(_package ${GITACHE_PACKAGES})
+  set(${_package}_ROOT "${${_package}_ROOT}" PARENT_SCOPE)
+endforeach()

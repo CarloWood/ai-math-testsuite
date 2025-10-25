@@ -5,6 +5,7 @@
 # of ${GITACHE_CORE_SHA1} is available.
 #
 # Input:
+#    GITACHE_PACKAGES                   Space separated list of packages required by the main project.
 #    gitache_core_is_local              True if this is a local submodule.
 #    GITACHE_CORE_SHA1                  The SHA1 of the required commit of gitache-core.
 #
@@ -22,7 +23,7 @@
 # If GITACHE_CORE_SHA1 is already checked out, then GITACHE_CORE_SOURCE_DIR
 # is locked and control passed to main.cmake.
 
-message(DEBUG "DEBUG: Entering `${CMAKE_CURRENT_LIST_FILE}`")
+message(DEBUG "DEBUG: Entering `${CMAKE_CURRENT_LIST_FILE}` with GITACHE_PACKAGES = \"${GITACHE_PACKAGES}\".")
 
 # Make sure that GITACHE_CORE_SHA1 is checked out.
 # This is done by executing git commands directly; so find git.

@@ -3,6 +3,8 @@
 # GITACHE_PACKAGES                      - Space separated list of packages required by the main project.
 # gitache_where                         - NONE or STDOUT, depending on log-level.
 # GITACHE_CORE_SOURCE_DIR               - The directory containing gitache-core.
+#
+message(DEBUG "DEBUG: Entering `${CMAKE_CURRENT_LIST_FILE}` with GITACHE_PACKAGES = \"${GITACHE_PACKAGES}\".")
 
 # Every package in GITACHE_PACKAGES must have a config file in _gitache_default_config_dir.
 set(_gitache_default_config_dir "${CMAKE_SOURCE_DIR}/cmake/gitache-configs" CACHE PATH "Default directory containing configs for gitache packages.")
