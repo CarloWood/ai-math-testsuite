@@ -38,7 +38,7 @@ endif ()
 set(GITACHE_CORE_GIT_REPOSITORY "https://github.com/CarloWood/gitache-core.git")
 set(GITACHE_CORE_DIR "${GITACHE_ROOT}/gitache-core" CACHE INTERNAL "")
 
-function(lock_core_directory)
+function(_gitache_lock_core_directory)
   message(STATUS "Locking directory \"${GITACHE_CORE_DIR}\"...")
   file(LOCK ${GITACHE_CORE_DIR} DIRECTORY
     GUARD PROCESS
@@ -50,14 +50,14 @@ function(lock_core_directory)
   endif ()
 endfunction()
 
-function(unlock_core_directory)
+function(_gitache_unlock_core_directory)
   message(STATUS "Unlocking directory \"${GITACHE_CORE_DIR}\".")
   file(LOCK ${GITACHE_CORE_DIR} DIRECTORY RELEASE)
 endfunction()
 
 function(fetch_gitache_core)
   # The following lock is obtained while cloning and/or updating the gitache-core repository.
-  lock_core_directory()
+  _gitache_lock_core_directory()
   message(STATUS "  success.\n** Populating \"${GITACHE_CORE_DIR}\" with ${GITACHE_CORE_SHA1}.")
   FetchContent_Populate(gitache-core
     QUIET
@@ -66,7 +66,7 @@ function(fetch_gitache_core)
     SUBBUILD_DIR   "${GITACHE_CORE_DIR}/subbuild"
     SOURCE_DIR     "${GITACHE_CORE_DIR}/source"
   )
-  unlock_core_directory()
+  _gitache_unlock_core_directory()
 endfunction()
 
 message(STATUS "----------------------------------------------------\n** Populating gitache:")

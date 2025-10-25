@@ -43,14 +43,19 @@ if(DEFINED CACHE{CMAKE_MESSAGE_LOG_LEVEL} AND "${CMAKE_MESSAGE_LOG_LEVEL}" STREQ
 endif()
 
 # Stop other processes from changing the SHA1.
-lock_core_directory()
+_gitache_lock_core_directory()
+set(CORE_DIRECTORY_LOCKED True)
+
+while (TRUE) # So we can break out of it after setting ERROR_MESSAGE.
+  set(ERROR_MESSAGE False)
 
 # This might not even be a git repository; in that case there is nothing to update.
 if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
   Dout("Not a git repository: skipping the update of gitache-core.")
 else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
   if (NOT gitache_core_is_local)
-    message(FATAL_ERROR "Can't find a .git directory in ${CMAKE_CURRENT_LIST_DIR}.")
+    set(ERROR_MESSAGE "Can't find a .git directory in ${CMAKE_CURRENT_LIST_DIR}.")
+    break()
   endif ()
 
   # Get the SHA1 that is checked out right now.
@@ -114,7 +119,8 @@ else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
         break()
       endif ()
       if (_fetched)
-        message(FATAL_ERROR "The environment variable GITACHE_CORE_SHA1 is set to \"${GITACHE_CORE_SHA1}\", which does not exist in the gitache-core repository.")
+        set(ERROR_MESSAGE "The environment variable GITACHE_CORE_SHA1 is set to \"${GITACHE_CORE_SHA1}\", which does not exist in the gitache-core repository.")
+        break()
       endif ()
       # Fetch once, then loop to retry the rev-parse.
       execute_process(
@@ -124,7 +130,8 @@ else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
         RESULT_VARIABLE _fetch_exit
       )
       if (_fetch_exit)
-        message(FATAL_ERROR "git fetch failed with exit code ${_fetch_exit}.")
+        set(ERROR_MESSAGE "git fetch failed with exit code ${_fetch_exit}.")
+        break()
       endif ()
       set(_fetched TRUE)
     endwhile ()
@@ -139,9 +146,10 @@ else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
       else()
         set(_fatal_message "The local submodule has checked out ${head_sha1}, but ${GITACHE_CORE_SHA1} is requested.")
       endif()
-      message(FATAL_ERROR
+      set(ERROR_MESSAGE
         " ${_fatal_message} Please set the environment variable GITACHE_CORE_SHA1 to the sha1 that is checked out before calling cmake:\n"
         " \n     export GITACHE_CORE_SHA1=$(git -C ${GITACHE_CORE_SOURCE_DIR} rev-parse HEAD)\n")
+      break()
     endif()
     # check if the SHA1 is in the local repository.
     execute_process(COMMAND ${git_executable} cat-file -e "${GITACHE_CORE_SHA1}^{commit}"
@@ -167,10 +175,11 @@ else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
       ERROR_QUIET
     )
     if(_exit_code)
-      message(FATAL_ERROR " Failed to checkout ${_commit_sha1} of gitache-core!")
+      set(ERROR_MESSAGE " Failed to checkout ${_commit_sha1} of gitache-core!")
+      break()
     endif()
     # This file was changed. Reload it!
-    unlock_core_directory()
+    _gitache_unlock_core_directory()
     return()
   elseif(_commit_sha1 STREQUAL GITACHE_CORE_SHA1)
     message(STATUS "Gitache-core is already at ${GITACHE_CORE_SHA1}.")
@@ -180,9 +189,50 @@ else (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
 
 endif (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git")
 
-# Now, with ${GITACHE_CORE_SOURCE_DIR} process locked, start the real thing.
-list(PREPEND CMAKE_MODULE_PATH "${GITACHE_CORE_SOURCE_DIR}")
-include(main)   # Also uses gitache_where.
+  # No error occured. Just continue running (leave this fake "loop").
+  break()
+endwhile()
+
+if (NOT ERROR_MESSAGE)
+  # Now, with ${GITACHE_CORE_SOURCE_DIR} process locked, start the real thing.
+  list(PREPEND CMAKE_MODULE_PATH "${GITACHE_CORE_SOURCE_DIR}")
+  include(main)   # Also uses gitache_where.
+
+function(gitache_register_config_dir)
+  _gitache_lock_core_directory()
+  set(CORE_DIRECTORY_LOCKED True)
+  gitache_register_config_dir_locked(${ARGV})
+  _gitache_unlock_core_directory()
+  set(CORE_DIRECTORY_LOCKED False)
+
+  if (ERROR_MESSAGE)
+    message(FATAL_ERROR ${ERROR_MESSAGE})
+  endif ()
+endfunction()
+
+function(gitache_require_packages)
+  # This function can be called from a submodules CMakeLists.txt;
+  # we have to load all required global properties that were set by the super project!
+  get_property(_core_dir GLOBAL PROPERTY GITACHE_CORE_SOURCE_DIR)
+  set(GITACHE_CORE_SOURCE_DIR ${_core_dir})
+
+  _gitache_lock_core_directory()
+  set(CORE_DIRECTORY_LOCKED True)
+  _gitache_require_packages_locked(${ARGV})
+  _gitache_unlock_core_directory()
+  set(CORE_DIRECTORY_LOCKED False)
+
+  if (ERROR_MESSAGE)
+    message(FATAL_ERROR ${ERROR_MESSAGE})
+  endif ()
+endfunction()
+
+endif (NOT ERROR_MESSAGE)
 
 # We're finished with gitache-core.
-unlock_core_directory()
+_gitache_unlock_core_directory()
+set(CORE_DIRECTORY_LOCKED False)
+
+if (ERROR_MESSAGE)
+  message(FATAL_ERROR ${ERROR_MESSAGE})
+endif ()
