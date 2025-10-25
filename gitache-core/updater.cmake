@@ -216,15 +216,38 @@ function(gitache_require_packages)
   get_property(_core_dir GLOBAL PROPERTY GITACHE_CORE_SOURCE_DIR)
   set(GITACHE_CORE_SOURCE_DIR ${_core_dir})
 
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs CONFIG_DIRS)
+  cmake_parse_arguments(gitache_require "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  set(_packages ${gitache_require_UNPARSED_ARGUMENTS})
+
   _gitache_lock_core_directory()
   set(CORE_DIRECTORY_LOCKED True)
-  _gitache_require_packages_locked(${ARGV})
+
+  foreach(_dir ${gitache_require_CONFIG_DIRS})
+    _gitache_register_config_dir_locked("${_dir}")
+    if (ERROR_MESSAGE)
+      set(ERROR_MESSAGE "${ERROR_MESSAGE}" PARENT_SCOPE)
+      break()
+    endif ()
+  endforeach()
+
+  if (NOT ERROR_MESSAGE)
+    _gitache_require_packages_locked(${_packages})
+  endif ()
+
   _gitache_unlock_core_directory()
   set(CORE_DIRECTORY_LOCKED False)
 
   if (ERROR_MESSAGE)
     message(FATAL_ERROR ${ERROR_MESSAGE})
   endif ()
+
+  # Propagate the package_ROOT's to the parent.
+  foreach(_package ${_packages})
+    set(${_package}_ROOT "${${_package}_ROOT}" PARENT_SCOPE)
+  endforeach()
 endfunction()
 
 endif (NOT ERROR_MESSAGE)

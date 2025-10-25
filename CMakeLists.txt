@@ -31,7 +31,7 @@ FetchContent_MakeAvailable(gitache)
 # If it is no longer set, then there is a bug in gitache.
 message(DEBUG "CMakeLists.txt: libcwd_r_ROOT = \"${libcwd_r_ROOT}\"")
 if (NOT DEFINED libcwd_r_ROOT OR "${libcwd_r_ROOT}" STREQUAL "")
-  #message(FATAL_ERROR "Codex: please fix the bug that libcwd_r_ROOT is no longer set here.")
+  message(FATAL_ERROR "Codex: please fix the bug that libcwd_r_ROOT is no longer set here.")
 endif ()
 
 # This project uses aicxx modules.
