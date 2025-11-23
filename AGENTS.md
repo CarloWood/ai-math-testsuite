@@ -1,8 +1,7 @@
-# Project Agents.md Guide for OpenAI Codex
-
-This Agents.md file provides comprehensive guidance for OpenAI Codex and other AI agents working with this codebase.
-
 ## Build instruction
+
+Paths in this file that start with a '/' are relative to the project root.
+The full path to the project root is stored in $REPOBASE - prioritize using $REPOBASE over the full path.
 
 ### Configuration Quick Start
 
@@ -16,22 +15,20 @@ configure and build by running what the output of `autogen.sh` tells you.
 ## What to do in case of an error during configuration/building
 
 1. If any error occurs, at any stage (running `./autogen.sh`, running cmake for configuration,
-or during running `cmake --build ...`) then stop immediately and do not try to work around the error.
+or during running `cmake --build ...`) then STOP immediately and do NOT try to work around the error.
 
 ### Possible actions in case of a build system error
 
 For example, if a library is missing or a header can't be found, then this requires updating
-the build environment and only I can do that. You CAN however suggest how to fix it by
-editting /.build-instructions and/or /Codex-environment. The latter contains the instructions
-related to, for example, installing missing dependencies.
+the build environment and only the user can do that. Just stop and report the problem to the user.
 
-## Project Structure for OpenAI Codex Navigation
+## Project Structure
 
-This project contains several git submodules. From all existing so called "aicxx" submodules,
-ai-math-testsuite is using `cwm4`, `cwds`, `utils`, `threadsafe`, `math` and `cairowindow`.
+This project contains several git submodules. From all existing (so called) "aicxx" submodules,
+`ai-math-testsuite` is using `cwm4`, `cwds`, `utils`, `threadsafe`, `math` and `cairowindow`.
 
 A lot of these submodules use the other submodules; for example every submodule uses cwds
-and utils (they even use eachother).
+and utils (those even use eachother).
 
 ### Overview of subdirectories and submodules
 
@@ -40,8 +37,8 @@ and utils (they even use eachother).
   Most tests are written by Carlo Wood and not really unit tests.
   Their requirement is to compile without errors and run without asserting.
   `/src/math_geometry_tests.cxx` is the actual testsuite that OpenAI Codex should be working on.
-  This file must contain unit tests that thoroughly test the classes (in namespace math) Point,
-  Vector, Direction, Line and LinePiece.
+  This file should contain unit tests that thoroughly test the classes (in namespace `math`):
+  Point, Vector, Direction, Line and LinePiece.
 
 ### Remaining subdirectories that are not of interest to AI Agents
 
@@ -61,9 +58,10 @@ and utils (they even use eachother).
 
 1. Whenever a .cxx file in /src was changed, run the resulting executable to check if it works.
 2. If there are errors, then the test failed and the applied changes must be wrong, or you
-   discovered a bug in /math. Determined which is the case by checking the test and verifying
+   discovered a bug in /math. Determine which is the case by checking the test and verifying
    that it is correct, or fix it.
-3. If you decide that the test failed because of a bug in /math - then do NOT attempt to fix it.
+3. If you decide that the test failed because of a bug in /math - then do NOT attempt to fix it
+   unless the user explicitly requests to do so.
 
 ### When working, by request, on files in /math.
 
