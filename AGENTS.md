@@ -5,22 +5,31 @@ The full path to the project root is stored in $REPOBASE - prioritize using $REP
 
 ### Configuration Quick Start
 
-1. Run `./autogen.sh` from the repository root.
-2. Follow the configuration and build commands printed by `./autogen.sh` without modification.
-3. Edit `/.build-instructions` only if the generated commands require changes (for example, to fix paths or options).
+- First check CODEX_DIRECTORY; if empty, treat cwd as repo root and avoid redundant cd.
+- Prefer path relative to the cwd, otherwise prioritize $REPOBASE and $BUILDDIR in commands instead of absolute paths.
+- Run `./autogen.sh`, which lives in the repository root, and follow the configure and build instructions verbatim.
+- If the user says `build` he means the `cmake --build` line (only). Otherwise he'll say `configure`.
+  If unsure if the project was already configured at all; just assume it is and try to build first (if the user asks you to build the project).
 
-There is no need to inspect autogen.sh and/or /.build-instructions, just
-configure and build by running what the output of `autogen.sh` tells you.
+There is no need to inspect autogen.sh, just configure and build by running what the output of `autogen.sh` tells you.
+
+## Helper shell functions
+
+- `findsymbol <symbol> [--kinds=<kinds-list>] [--scope=<scope>] [--subpath=<sub-path>] [--prefix] [--help]`
+       --kinds : a comma separated list of kinds: `c|class, s|struct, u|union, f|func|method, m|member|field, v|var|variable, t|typedef|using, g|Enum, e|enum, n|namespace, d|macro|define`
+       --subpath : filters on a contiguous subsequence of pathname components in the output location.
+       --scope : filters on scopes that begin with given substring.
+       --prefix : also match symbols that begin with `<symbol>`.
+  Paths are abbreviated by being either relative to the cwd or the path environment variables (`REPOBASE`, `BUILDDIR`, `CODEX_WORKSPACE`).
+  `findsymbol` uses `$BUILDDIR/tags` which can be refreshed by running `make ctags` (only do that if it starts failing).
+
+- Always use `findsymbol` to locate the definition of a class, (member)function, enum etc. Fallback to `rg` if it doesn't find what you are looking for.
+- Use `rg` if you need to find every occurrence (comments, usage, forward declarations etc).
 
 ## What to do in case of an error during configuration/building
 
-1. If any error occurs, at any stage (running `./autogen.sh`, running cmake for configuration,
+- If any error occurs, at any stage (running `./autogen.sh`, running cmake for configuration,
 or during running `cmake --build ...`) then STOP immediately and do NOT try to work around the error.
-
-### Possible actions in case of a build system error
-
-For example, if a library is missing or a header can't be found, then this requires updating
-the build environment and only the user can do that. Just stop and report the problem to the user.
 
 ## Project Structure
 
@@ -42,15 +51,11 @@ and utils (those even use eachother).
 
 ### Remaining subdirectories that are not of interest to AI Agents
 
-- `/cmake`: Contains instructions for gitache on how to download, configure and install libcwd
-  (and any other github repository that might be required by the project).
-- `/cwds`: This is a git submodule containing debugging support code for C++ projects in general,
-  on top of libcwd.
-- `/utils`: this is a stable git submodule containing various C++ utilities that might be used
-  by the project and other git submodules.
+- `/cmake`: Contains instructions for gitache on how to download, configure and install libcwd (and any other github repository that might be required by the project).
+- `/cwds`: This is a git submodule containing debugging support code for C++ projects in general, on top of libcwd.
+- `/utils`: this is a stable git submodule containing various C++ utilities that might be used by the project and other git submodules.
 - `/cwm4`: Contains build system support.
-- `/threadsafe` and `/cairowindow`: These submodules are only here because some of the tests
-  in `/src` written by Carlo Wood use them.
+- `/threadsafe` and `/cairowindow`: These submodules are only here because some of the tests in `/src` written by Carlo Wood use them.
 
 ## Test instructions
 
