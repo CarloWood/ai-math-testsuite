@@ -22,6 +22,9 @@ target_link_libraries(roots_test ${AICXX_OBJECTS_LIST})
 add_executable(hello_cga hello_cga.cxx)
 target_link_libraries(hello_cga ${AICXX_OBJECTS_LIST})
 
+add_executable(versor_test versor_test.cxx)
+target_link_libraries(versor_test ${AICXX_OBJECTS_LIST})
+
 if (EnableCairoWindow)
 
 add_executable(cubic_roots cubic_roots.cxx)
