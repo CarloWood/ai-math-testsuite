@@ -24,7 +24,10 @@ There is no need to inspect autogen.sh, just configure and build by running what
   `findsymbol` uses `$BUILDDIR/tags` which can be refreshed by running `make ctags` (only do that if it starts failing).
 
 - Always use `findsymbol` to locate the definition of a class, (member)function, enum etc. Fallback to `rg` if it doesn't find what you are looking for.
-- Use `rg` if you need to find every occurrence (comments, usage, forward declarations etc).
+- Use `rg` only if you need to find *every* occurrence including comments, usage, forward declarations etc.
+
+For example, to find all locations where a class (or struct) `Vector` is defined in the project, you will use: `findsymbol Vector --kinds=c,s`.
+The reason for this tool is to limit the generated output; following up with an `rg` command is strongly discouraged, as that would defeat the whole purpose of `findsymbol`.
 
 ## What to do in case of an error during configuration/building
 
