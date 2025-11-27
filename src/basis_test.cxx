@@ -26,8 +26,10 @@ int main()
   Dout(dc::notice, "playground7_coordinate_subspace_basis = " << debug::type_name_of<playground7_coordinate_subspace_basis>());
   Dout(dc::notice, "with number of dimensions: " << playground7_coordinate_subspace_basis::n);
 
-  playground7_coordinate_subspace_basis playground7_basis;
-  Dout(dc::notice, "playground7_basis = " << playground7_basis);
+  // Construct a basis for playground7.
+  auto perm = {10, 0, 13, 4, 3, 17};
+  auto basis = UniverseA::CoordinateSubspace<6>::from_permutation(perm);
+  Dout(dc::notice, "basis = " << basis);
 
   Dout(dc::notice, "Leaving main()");
 }
