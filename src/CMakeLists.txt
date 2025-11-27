@@ -19,11 +19,11 @@ target_link_libraries(math_hyperblock_tests ${AICXX_OBJECTS_LIST})
 add_executable(roots_test roots_test.cxx)
 target_link_libraries(roots_test ${AICXX_OBJECTS_LIST})
 
-add_executable(hello_cga hello_cga.cxx)
-target_link_libraries(hello_cga ${AICXX_OBJECTS_LIST})
+#add_executable(hello_cga hello_cga.cxx)
+#target_link_libraries(hello_cga ${AICXX_OBJECTS_LIST})
 
-add_executable(versor_test versor_test.cxx)
-target_link_libraries(versor_test ${AICXX_OBJECTS_LIST})
+add_executable(basis_test basis_test.cxx)
+target_link_libraries(basis_test ${AICXX_OBJECTS_LIST})
 
 if (EnableCairoWindow)
 

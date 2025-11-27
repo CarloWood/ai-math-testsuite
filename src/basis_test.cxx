@@ -7,10 +7,10 @@ enum A {};
 struct B {};
 } // namespace universe
 
-using UniverseA = math::Universe<universe::A, 10>;      // Orthonormal basis: { e1, e2, e3, ... e32 }
+using UniverseA = math::Universe<universe::A, 32>;      // Orthonormal basis: { e1, e2, e3, ... e32 }
 using UniverseB = math::Universe<universe::B, 5>;       // Orthonormal basis: { e1, e2, e3, ... e5 }
 
-constexpr int playground7 = 3;                          // Use 7 dimensions for 'playground7'.
+constexpr int playground7 = 7;                          // Use 7 dimensions for 'playground7'.
 
 int main()
 {
@@ -25,6 +25,9 @@ int main()
   Dout(dc::notice, "UniverseA::basis_type = " << debug::type_name_of<UniverseA::basis_type>());
   Dout(dc::notice, "playground7_coordinate_subspace_basis = " << debug::type_name_of<playground7_coordinate_subspace_basis>());
   Dout(dc::notice, "with number of dimensions: " << playground7_coordinate_subspace_basis::n);
+
+  playground7_coordinate_subspace_basis playground7_basis;
+  Dout(dc::notice, "playground7_basis = " << playground7_basis);
 
   Dout(dc::notice, "Leaving main()");
 }
