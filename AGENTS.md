@@ -1,38 +1,4 @@
-## Build instruction
-
-Paths in this file that start with a '/' are relative to the project root.
-The full path to the project root is stored in $REPOBASE - prioritize using $REPOBASE over the full path.
-
-### Configuration Quick Start
-
-- First check CODEX_DIRECTORY; if empty, treat cwd as repo root and avoid redundant cd.
-- Prefer path relative to the cwd, otherwise prioritize $REPOBASE and $BUILDDIR in commands instead of absolute paths.
-- Run `./autogen.sh`, which lives in the repository root, and follow the configure and build instructions verbatim.
-- If the user says `build` he means the `cmake --build` line (only). Otherwise he'll say `configure`.
-  If unsure if the project was already configured at all; just assume it is and try to build first (if the user asks you to build the project).
-
-There is no need to inspect autogen.sh, just configure and build by running what the output of `autogen.sh` tells you.
-
-## Helper shell functions
-
-- `findsymbol <symbol> [--kinds=<kinds-list>] [--scope=<scope>] [--subpath=<sub-path>] [--prefix] [--help]`
-       --kinds : a comma separated list of kinds: `c|class, s|struct, u|union, f|func|method, m|member|field, v|var|variable, t|typedef|using, g|Enum, e|enum, n|namespace, d|macro|define`
-       --subpath : filters on a contiguous subsequence of pathname components in the output location.
-       --scope : filters on scopes that begin with given substring.
-       --prefix : also match symbols that begin with `<symbol>`.
-  Paths are abbreviated by being either relative to the cwd or the path environment variables (`REPOBASE`, `BUILDDIR`, `CODEX_WORKSPACE`).
-  `findsymbol` uses `$BUILDDIR/tags` which can be refreshed by running `make ctags` (only do that if it starts failing).
-
-- Always use `findsymbol` to locate the definition of a class, (member)function, enum etc. Fallback to `rg` if it doesn't find what you are looking for.
-- Use `rg` only if you need to find *every* occurrence including comments, usage, forward declarations etc.
-
-For example, to find all locations where a class (or struct) `Vector` is defined in the project, you will use: `findsymbol Vector --kinds=c,s`.
-The reason for this tool is to limit the generated output; following up with an `rg` command is strongly discouraged, as that would defeat the whole purpose of `findsymbol`.
-
-## What to do in case of an error during configuration/building
-
-- If any error occurs, at any stage (running `./autogen.sh`, running cmake for configuration,
-or during running `cmake --build ...`) then STOP immediately and do NOT try to work around the error.
+Paths in this file that start with a '/' are relative to the project root ($REPOBASE).
 
 ## Project Structure
 
