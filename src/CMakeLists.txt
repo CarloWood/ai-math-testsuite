@@ -4,6 +4,9 @@ find_library(GMP_LIBRARY gmp)
 find_library(MPFR_LIBRARY mpfr)
 find_library(GLPK_LIBRARY glpk)
 
+add_executable(k-face_tests k-face_tests.cxx)
+target_link_libraries(k-face_tests ${AICXX_OBJECTS_LIST})
+
 add_executable(bracket_zero_test bracket_zero_test.cxx)
 target_link_libraries(bracket_zero_test ${AICXX_OBJECTS_LIST})
 
