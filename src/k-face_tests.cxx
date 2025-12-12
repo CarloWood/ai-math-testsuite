@@ -42,8 +42,40 @@ struct kFaceData
 {
   using axes_type = utils::BitSet<utils::uint_leastN_t<n>>;
 
-  axes_type k_axis;             // The k axes that are aligned with this k-face.
+  axes_type k_axes;             // The k axes that are aligned with this k-face.
   CornerIndex<n> zero_corner;   // The corner index, that is part of the k-face, with zeroes for each of the k axes.
+};
+
+template<int n, int k>
+class kFace : public kFaceData<n, k>
+{
+  using axes_type = kFaceData<n, k>::axes_type;
+
+ public:
+  kFace(kFaceData<n, k> const& data) : kFaceData<n, k>(data) { }
+
+ private:
+  friend class kFaceIndex<n, k>;
+  kFace<n, k - 1> get_facet(axes_type axis, int c) const
+  {
+    // `axis` must be an axis from k_axes.
+    ASSERT(axis.is_single_bit() && !(this->k_axes & axis).none());
+
+    size_t zero_corner = this->zero_corner.get_value();
+    if (c)
+      zero_corner |= axis();
+    else
+      zero_corner &= ~axis();
+
+    return {{this->k_axes & ~axis, zero_corner}};
+  }
+
+#ifdef CWDEBUG
+  void print_on(std::ostream& os) const
+  {
+    os << "{k_axes:" << this->k_axes << ", zero_corner:" << this->zero_corner << "}";
+  }
+#endif
 };
 
 template<int n, int k>
@@ -62,21 +94,19 @@ class kFaceIndex : public utils::VectorIndex<kFaceData<n, k>>
   static uint32_t rank(axes_type k_axes);
   static axes_type unrank(uint32_t r);
 
-  // FIXME: shouldn't this be deleted?
-  kFaceIndex() = default;
+  // Construct an undefined kface.
+  constexpr kFaceIndex() = default;
 
   // Construct a corner.
-  kFaceIndex(axes_type coordinate_mask) requires (k == 0) : utils::VectorIndex<kFaceData<n, k>>(coordinate_mask())
+  constexpr kFaceIndex(utils::uint_leastN_t<n> value) requires (k == 0) : utils::VectorIndex<kFaceData<n, k>>(static_cast<size_t>(value)) { }
+
+  kFaceIndex(kFaceData<n, k> const& kface) : utils::VectorIndex<kFaceData<n, k>>(static_cast<size_t>(rank(kface.k_axes) << (n - k) | kface.zero_corner.remove_bits(kface.k_axes)))
   {
   }
 
-  kFaceIndex(kFaceData<n, k> const& kface) : utils::VectorIndex<kFaceData<n, k>>(static_cast<size_t>(rank(kface.k_axis) << (n - k) | kface.zero_corner.remove_bits(kface.k_axis)))
-  {
-  }
+  std::array<kFaceIndex<n, k - 1>, number_of_facets> facet_indexes() requires (k > 0);
 
-  std::array<kFaceIndex<n, k - 1>, number_of_facets> facet_indexes();
-
- public: // FIXME: should be private
+ private:
   uint32_t remove_bits(axes_type k_axes) const requires (k == 0)
   {
     ASSERT(!this->undefined());
@@ -93,18 +123,25 @@ class kFaceIndex : public utils::VectorIndex<kFaceData<n, k>>
 
 template<int n, int k>
 std::array<kFaceIndex<n, k - 1>, kFaceIndex<n, k>::number_of_facets>
-kFaceIndex<n, k>::facet_indexes()
+kFaceIndex<n, k>::facet_indexes() requires (k > 0)
 {
   ASSERT(!this->undefined());
 
   uint32_t const mask = this->get_value();
-  uint32_t const rrr = mask >> (n - k);
-  uint32_t const fff = mask & fixed_mask;
-  axes_type k_axes = unrank(rrr);
+  uint32_t const rank_bits = mask >> (n - k);
+  uint32_t const fixed_bits = mask & fixed_mask;
+  axes_type k_axes = unrank(rank_bits);
+  kFace<n, k> kface{{k_axes, utils::deposit_bits(fixed_bits, k_axes())}};
 
-  Dout(dc::notice, "k_axes = " << k_axes);
+  std::array<kFaceIndex<n, k - 1>, kFaceIndex<n, k>::number_of_facets> result;
 
-  return {};
+  // Fill the result array with all facets.
+  int i = 0;
+  for (auto axis : k_axes)
+    for (int c = 0; c <= 1; ++c)
+      result[i++] = kface.get_facet(axis, c);
+
+  return result;
 }
 
 // Returns the rank for this choice of axes for the set of all possible ways one can choose k axes out of n.
@@ -197,10 +234,9 @@ int main()
 
   math::Vector<n> const origin(-1);
   math::Vector<n> const far_corner(1, 1, 1, 1, 1, 1, 1);
-  k_face_index::axes_type::pod_type const c1_pod{0b1001101};
-  math::CornerIndex<n> const c1{c1_pod};
+  math::CornerIndex<n> const ci{0b1001101};
   k_face_index::axes_type::pod_type k_axes{0b0101010};
-  k_face_index kfr({k_axes, c1});
+  k_face_index kfr({k_axes, ci});
 
   //101001011
   //  256 + 64 + 8 + 3 =
