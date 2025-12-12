@@ -3,6 +3,7 @@
 #include "utils/uint_leastN_t.h"
 #include "utils/BitSet.h"
 #include "utils/create_mask.h"
+#include "utils/deposit_extract.h"
 #include "math/Vector.h"
 #include "math/binomial.h"
 #include "debug.h"
@@ -64,34 +65,17 @@ class kFaceRank : public utils::VectorIndex<category::kFace<n, k>>
   std::array<kFaceRank<n, k - 1>, number_of_facets> facet_indexes();
 
  public: // FIXME: should be private
-  int remove_bits(axes_type bits) requires (k == 0)
+  uint32_t remove_bits(axes_type k_axes) requires (k == 0)
   {
     ASSERT(!this->undefined());
+    static_assert(n <= 32, "remove_bits returns at most 32 bits.");
 
     using mask_type = typename axes_type::mask_type;
 
-    mask_type const mask = static_cast<mask_type>(this->get_value());
-    mask_type const b = bits();
+    mask_type const value = static_cast<mask_type>(this->get_value());
+    mask_type const mask = ~k_axes();
 
-    mask_type result = 0;
-    int removed = 0;
-
-    // Walk over all n coordinate bits; skip the ones present in 'b' and
-    // compact the remaining bits downward.
-    for (int i = 0; i < n; ++i)
-    {
-      mask_type const bit = static_cast<mask_type>(mask_type{1} << i);
-      if (b & bit)
-      {
-        ++removed;
-      }
-      else if (mask & bit)
-      {
-        result |= static_cast<mask_type>(mask_type{1} << (i - removed));
-      }
-    }
-
-    return static_cast<int>(result);
+    return static_cast<uint32_t>(utils::extract_bits(value, mask));
   }
 };
 
