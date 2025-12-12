@@ -107,6 +107,7 @@ class kFaceIndex : public utils::VectorIndex<kFaceData<n, k>>
   std::array<kFaceIndex<n, k - 1>, number_of_facets> facet_indexes() requires (k > 0);
 
  private:
+  template<int, int> friend class kFaceIndex;
   uint32_t remove_bits(axes_type k_axes) const requires (k == 0)
   {
     ASSERT(!this->undefined());
