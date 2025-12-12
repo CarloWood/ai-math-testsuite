@@ -9,11 +9,9 @@
 #include "debug.h"
 
 namespace math {
-namespace category {
 
-template<int n, int k> struct kFace;
-
-} // namespace category
+template<int n, int k>
+struct kFaceData;
 
 // n : number of dimensions of the hypercube.
 // k : number of dimensions of the encoded k-face.
@@ -32,10 +30,24 @@ template<int n, int k> struct kFace;
 // The rank bits (<rrr>) encode the lexiographic rank of the k axes that the k-face
 // aligns with, as returned by the member function `rank`.
 //
-// Note that a 0-face is a corner (k=0), a 1-face is an edge (k=1).
-//
 template<int n, int k>
-class kFaceRank : public utils::VectorIndex<category::kFace<n, k>>
+class kFaceIndex;
+
+// Note that a 0-face is a corner (k=0), a 1-face is an edge (k=1).
+template<int n>
+using CornerIndex = kFaceIndex<n, 0>;
+
+template<int n, int k>
+struct kFaceData
+{
+  using axes_type = utils::BitSet<utils::uint_leastN_t<n>>;
+
+  axes_type k_axis;             // The k axes that are aligned with this k-face.
+  CornerIndex<n> zero_corner;   // The corner index, that is part of the k-face, with zeroes for each of the k axes.
+};
+
+template<int n, int k>
+class kFaceIndex : public utils::VectorIndex<kFaceData<n, k>>
 {
  public:
   // A bitset that can hold at least n bits, where each bit represents an axis.
@@ -51,21 +63,21 @@ class kFaceRank : public utils::VectorIndex<category::kFace<n, k>>
   static axes_type unrank(uint32_t r);
 
   // FIXME: shouldn't this be deleted?
-  kFaceRank() = default;
+  kFaceIndex() = default;
 
   // Construct a corner.
-  kFaceRank(axes_type coordinate_mask) requires (k == 0) : utils::VectorIndex<category::kFace<n, k>>(coordinate_mask())
+  kFaceIndex(axes_type coordinate_mask) requires (k == 0) : utils::VectorIndex<kFaceData<n, k>>(coordinate_mask())
   {
   }
 
-  kFaceRank(axes_type k_axis, kFaceRank<n, 0> corner) : utils::VectorIndex<category::kFace<n, k>>(static_cast<size_t>(rank(k_axis) << (n - k) | corner.remove_bits(k_axis)))
+  kFaceIndex(kFaceData<n, k> const& kface) : utils::VectorIndex<kFaceData<n, k>>(static_cast<size_t>(rank(kface.k_axis) << (n - k) | kface.zero_corner.remove_bits(kface.k_axis)))
   {
   }
 
-  std::array<kFaceRank<n, k - 1>, number_of_facets> facet_indexes();
+  std::array<kFaceIndex<n, k - 1>, number_of_facets> facet_indexes();
 
  public: // FIXME: should be private
-  uint32_t remove_bits(axes_type k_axes) requires (k == 0)
+  uint32_t remove_bits(axes_type k_axes) const requires (k == 0)
   {
     ASSERT(!this->undefined());
     static_assert(n <= 32, "remove_bits returns at most 32 bits.");
@@ -80,8 +92,8 @@ class kFaceRank : public utils::VectorIndex<category::kFace<n, k>>
 };
 
 template<int n, int k>
-std::array<kFaceRank<n, k - 1>, kFaceRank<n, k>::number_of_facets>
-kFaceRank<n, k>::facet_indexes()
+std::array<kFaceIndex<n, k - 1>, kFaceIndex<n, k>::number_of_facets>
+kFaceIndex<n, k>::facet_indexes()
 {
   ASSERT(!this->undefined());
 
@@ -98,7 +110,7 @@ kFaceRank<n, k>::facet_indexes()
 // Returns the rank for this choice of axes for the set of all possible ways one can choose k axes out of n.
 //static
 template<int n, int k>
-uint32_t kFaceRank<n, k>::rank(axes_type k_axes)
+uint32_t kFaceIndex<n, k>::rank(axes_type k_axes)
 {
   // There should be one bit set for each of the k axes.
   ASSERT(k_axes.count() == k);
@@ -130,7 +142,7 @@ uint32_t kFaceRank<n, k>::rank(axes_type k_axes)
 // Given a rank in [0, C(n,k)) return the corresponding axes BitSet.
 //static
 template<int n, int k>
-typename kFaceRank<n, k>::axes_type kFaceRank<n, k>::unrank(uint32_t r)
+typename kFaceIndex<n, k>::axes_type kFaceIndex<n, k>::unrank(uint32_t r)
 {
   using namespace utils::bitset;
   // Index of the least significant bit.
@@ -162,27 +174,6 @@ typename kFaceRank<n, k>::axes_type kFaceRank<n, k>::unrank(uint32_t r)
 
 } // namespace math
 
-#if 0
-template<int n, int k>
-int rank_old(std::array<int, k> const& k_axes)
-{
-  DoutEntering(dc::notice, "*** rank_old<" << n << ", " << k << ">(" << k_axes << ")");
-  int sum = 0;
-  for (int i = 1; i <= k; ++i)
-  {
-    Dout(dc::notice, "*** i=" << i << "; adding axis " << k_axes[i - 1]);
-    int mi = i == 1 ? 0 : k_axes[i - 2] + 1;
-    Dout(dc::notice, "*** mi = " << mi << "; running x from " << mi << " up till and including " << (k_axes[i - 1] - 1));
-    for (int x = mi; x <= k_axes[i - 1] - 1; ++x)
-    {
-      Dout(dc::notice, "***  x = " << x);
-      sum += math::binomial(n - 1 - x, k - i);
-    }
-  }
-  return sum;
-}
-#endif
-
 int main()
 {
   Debug(NAMESPACE_DEBUG::init());
@@ -200,17 +191,16 @@ int main()
 
   constexpr int n = 7;
   constexpr int k = 3;
-  using k_face_rank = math::kFaceRank<n, k>;
-  Dout(dc::notice, "Number of " << k << "-faces of an " << n << "-cube: " << k_face_rank::size);
-  Dout(dc::notice, "The number of facets of such a " << k << "-face: " << k_face_rank::number_of_facets);
+  using k_face_index = math::kFaceIndex<n, k>;
+  Dout(dc::notice, "Number of " << k << "-faces of an " << n << "-cube: " << k_face_index::size);
+  Dout(dc::notice, "The number of facets of such a " << k << "-face: " << k_face_index::number_of_facets);
 
   math::Vector<n> const origin(-1);
   math::Vector<n> const far_corner(1, 1, 1, 1, 1, 1, 1);
-  using CornerIndex = math::kFaceRank<n, 0>;
-  k_face_rank::axes_type::pod_type const c1_pod{0b1001101};
-  CornerIndex const c1{c1_pod};
-  k_face_rank::axes_type::pod_type k_axes{0b0101010};
-  k_face_rank kfr{k_axes, c1};
+  k_face_index::axes_type::pod_type const c1_pod{0b1001101};
+  math::CornerIndex<n> const c1{c1_pod};
+  k_face_index::axes_type::pod_type k_axes{0b0101010};
+  k_face_index kfr({k_axes, c1});
 
   //101001011
   //  256 + 64 + 8 + 3 =
@@ -225,13 +215,13 @@ int main()
       for (Index d2 = d1 + 1; d2 != index_end; ++d2)
       {
         std::array<Index, k> face_axes = { d0, d1, d2 };
-        k_face_rank::axes_type k_axes;
+        k_face_index::axes_type k_axes;
         k_axes.reset();
         for (int i = 0; i < k; ++i)
           k_axes.set(face_axes[i]);
-        uint32_t r = k_face_rank::rank(k_axes);
+        uint32_t r = k_face_index::rank(k_axes);
         Dout(dc::notice, "rank(" << face_axes << " (" << k_axes << ")) = " << r);
-        ASSERT((k_face_rank::unrank(r) == k_axes));
+        ASSERT((k_face_index::unrank(r) == k_axes));
       }
   Dout(dc::notice, n << " choose " << k << " = " << math::binomial(n, k));
 }
