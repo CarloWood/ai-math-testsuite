@@ -120,6 +120,7 @@ class kFace : public kFaceData<n, k>
   }
 
 #ifdef CWDEBUG
+ public:
   void print_on(std::ostream& os) const
   {
     os << "{k_axes:" << this->k_axes << ", zero_corner:" << this->zero_corner << "}";
@@ -258,7 +259,7 @@ int main()
 
   for (auto&& facet : facet_indexes)
   {
-    Dout(dc::notice, facet << " = " << facet.as_kface());
+    Dout(dc::notice, facet << " aka " << facet.get_value() << " aka " << std::format("{:b}", facet.get_value()) << " = " << facet.as_kface());
   }
 
   using namespace utils::bitset;
