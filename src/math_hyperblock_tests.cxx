@@ -94,49 +94,60 @@ void require_vector_near(vector_type<N> const& actual,
 }
 
 template<int N>
-void require_same_points(std::vector<vector_type<N>> actual,
-                         std::vector<vector_type<N>> expected,
-                         std::string const& context)
+void require_same_intersections(typename math::Hyperblock<N>::IntersectionPoints const& actual,
+                                typename math::Hyperblock<N>::IntersectionPoints const& expected,
+                                std::string const& context)
 {
   require(actual.size() == expected.size(),
           context + ": expected " + std::to_string(expected.size()) +
               " intersections, got " + std::to_string(actual.size()));
-  for (std::size_t i = 0; i < actual.size(); ++i)
+  for (auto i = actual.ibegin(); i != actual.iend(); ++i)
   {
-    require_vector_near(actual[i], expected[i], context + ", index=" + std::to_string(i));
+    vector_type<N> const& actual_vector = actual[i];
+    vector_type<N> const& expected_vector = expected[i];
+    require_vector_near(actual_vector, expected_vector, context + ", i=" + utils::to_string(i));
+    require(actual[i].edge_index() == expected[i].edge_index(), context + ", i=" + utils::to_string(i));
   }
 }
 
-template<typename Scalar>
+template<typename Index, typename Scalar>
 struct Entry
 {
-  std::size_t index;
-  Scalar      key;
+  Index index;
+  Scalar key;
 };
 
-template<typename Scalar>
-std::ostream& operator<<(std::ostream& os, Entry<Scalar> const& entry)
+template<typename Index, typename Scalar>
+std::ostream& operator<<(std::ostream& os, Entry<Index, Scalar> const& entry)
 {
   os << "{index:" << entry.index << ", key:" << entry.key << "}";
   return os;
 }
 
 template<int N>
-std::vector<vector_type<N>> reference_intersections(vector_type<N> const& c1,
-                                                    vector_type<N> const& c2,
-                                                    math::Hyperplane<N> const& plane)
+typename math::Hyperblock<N>::IntersectionPoints reference_intersections(vector_type<N> const& c1,
+                                                                         vector_type<N> const& c2,
+                                                                         math::Hyperplane<N> const& plane)
 {
-  std::vector<vector_type<N>> expected;
-  for (std::size_t mask = 0; mask < static_cast<std::size_t>(1UL << N); ++mask)
+  using intersection_points_type = typename math::Hyperblock<N>::IntersectionPoints;
+  using intersection_point_type = typename intersection_points_type::value_type;
+  using IntersectionPointIndex = typename intersection_points_type::index_type;
+
+  utils::VectorIndex<math::kFaceData<N, 1>> const edge_begin{0};
+  utils::VectorIndex<math::kFaceData<N, 1>> const edge_end{math::EdgeIndex<N>::size};
+  intersection_points_type expected;
+  for (auto i = edge_begin; i != edge_end; ++i)
   {
-    for (int d = 0; d < N; ++d)
+    math::EdgeIndex<N> const& ei = static_cast<math::EdgeIndex<N> const&>(i);
+    std::array<math::CornerIndex<N>, 2> corners = ei.facet_indexes();
+
+    vector_type<N> const corner1 = vector_from_corners(c1, c2, corners[0].get_value());
+    vector_type<N> const corner2 = vector_from_corners(c1, c2, corners[1].get_value());
+    if (plane.side(corner1) != plane.side(corner2))
     {
-      if (mask & (1UL << d))
-        continue;
-      vector_type<N> const corner1 = vector_from_corners(c1, c2, mask);
-      vector_type<N> const corner2 = vector_from_corners(c1, c2, mask | (1UL << d));
-      if (plane.side(corner1) != plane.side(corner2))
-        expected.push_back(plane.intersection(corner1, corner2));
+      intersection_point_type ip;
+      ip.init(plane.intersection(corner1, corner2), ei);
+      expected.push_back(ip);
     }
   }
 
@@ -148,10 +159,10 @@ std::vector<vector_type<N>> reference_intersections(vector_type<N> const& c1,
     using Scalar = typename Vec::scalar_type;
 
     // Project onto the plane and compute centroid.
-    std::vector<Vec> proj(expected.size());
+    utils::Vector<Vec, IntersectionPointIndex> proj(expected.size());
     Vec centroid;
     centroid.eigen().setZero();
-    for (std::size_t i = 0; i < expected.size(); ++i)
+    for (auto i = expected.ibegin(); i != expected.iend(); ++i)
     {
       proj[i] = plane.project(expected[i]);
       centroid += proj[i];
@@ -164,7 +175,7 @@ std::vector<vector_type<N>> reference_intersections(vector_type<N> const& c1,
     Vec n_hat  = n / nn;
 
     // First basis vector: direction from centroid to first point, projected into the plane.
-    Vec t1 = proj[0] - centroid;
+    Vec t1 = *proj.begin() - centroid;
     // Make sure t1 is orthogonal to n_hat (for safety in higher dimensions).
     t1 -= t1.dot(n_hat) * n_hat;
     Scalar t1n = t1.norm();
@@ -213,11 +224,12 @@ std::vector<vector_type<N>> reference_intersections(vector_type<N> const& c1,
       }
     }
 
-    std::vector<Entry<Scalar>> entries;
+    using entry_type = Entry<IntersectionPointIndex, Scalar>;
+    std::vector<entry_type> entries;
     entries.reserve(expected.size());
 
     // Compute raw angles for all points.
-    for (std::size_t i = 0; i < proj.size(); ++i)
+    for (auto i = proj.ibegin(); i != proj.iend(); ++i)
     {
       Vec v = proj[i] - centroid;
       Scalar x = v.dot(t1);
@@ -244,19 +256,40 @@ std::vector<vector_type<N>> reference_intersections(vector_type<N> const& c1,
     }
 
     // Keep the first point fixed; sort the rest by angle.
-    std::stable_sort(entries.begin(), entries.end(), [](Entry<Scalar> const& a, Entry<Scalar> const& b) { return a.key < b.key; });
+    std::stable_sort(entries.begin(), entries.end(), [](entry_type const& a, entry_type const& b) { return a.key < b.key; });
 
     // Remove near-duplicate angles, keeping the first occurrence.
-    auto new_end = std::unique(entries.begin(), entries.end(), [](Entry<Scalar> const& a, Entry<Scalar> const& b) { return utils::almost_equal(a.key, b.key, 10e-6); });
+    auto new_end = std::unique(entries.begin(), entries.end(), [](entry_type const& a, entry_type const& b) { return utils::almost_equal(a.key, b.key, 10e-6); });
     entries.erase(new_end, entries.end());
 
     // Build reordered vector; size is identical to expected.size().
-    std::vector<Vec> ordered;
+    std::vector<intersection_point_type> ordered;
     ordered.reserve(expected.size());
     for (auto const& e : entries)
       ordered.push_back(expected[e.index]);
 
     expected.swap(ordered);
+  }
+
+  return expected;
+}
+
+template<int N>
+typename math::Hyperblock<N>::IntersectionPoints create_expected(std::vector<vector_type<N>> const& expected_points,
+                                                                 std::vector<math::EdgeIndex<N>> const& expected_edges)
+{
+  require(expected_points.size() == expected_edges.size(),
+          "create_expected: expected_points.size() != expected_edges.size()");
+
+  typename math::Hyperblock<N>::IntersectionPoints expected;
+  expected.reserve(expected_points.size());
+  using intersection_point_type = typename decltype(expected)::value_type;
+
+  for (std::size_t i = 0; i < expected_points.size(); ++i)
+  {
+    intersection_point_type ip;
+    ip.init(expected_points[i], expected_edges[i]);
+    expected.push_back(ip);
   }
 
   return expected;
@@ -269,14 +302,23 @@ void axis_aligned_slice_test()
   math::Hyperblock<3> block{c1, c2};
   math::Hyperplane<3> const plane = make_plane<3>({1.0, 0.0, 0.0}, {1.0, 0.0, 0.0});
 
-  std::vector<vector_type<3>> const expected{
+  std::vector<vector_type<3>> const expected_points{
       {1.0, 0.0, 0.0},
       {1.0, 3.0, 0.0},
       {1.0, 3.0, 4.0},
       {1.0, 0.0, 4.0}};
 
+  using at = math::kFaceData<3, 1>::axes_type;
+  std::vector<math::EdgeIndex<3>> const expected_edges{
+      math::kFaceData<3, 1>{at{1}, 0},
+      math::kFaceData<3, 1>{at{1}, 2},
+      math::kFaceData<3, 1>{at{1}, 6},
+      math::kFaceData<3, 1>{at{1}, 4}};
+
+  math::Hyperblock<3>::IntersectionPoints const expected = create_expected(expected_points, expected_edges);
+
   auto const intersections = block.intersection_points(plane);
-  require_same_points(intersections, expected, "axis_aligned_slice_test intersections");
+  require_same_intersections<3>(intersections, expected, "axis_aligned_slice_test intersections");
 }
 
 void diagonal_slice_test()
@@ -286,16 +328,27 @@ void diagonal_slice_test()
   math::Hyperblock<3> block{c1, c2};
   math::Hyperplane<3> const plane = make_plane<3>({1.0, 1.0, 1.0}, {1.0, 1.0, 1.0});
 
-  std::vector<vector_type<3>> const expected{
-      {2.0, 1.0, 0.0},
+  std::vector<vector_type<3>> const expected_points{
       {1.0, 2.0, 0.0},
       {0.0, 2.0, 1.0},
       {0.0, 1.0, 2.0},
       {1.0, 0.0, 2.0},
-      {2.0, 0.0, 1.0}};
+      {2.0, 0.0, 1.0},
+      {2.0, 1.0, 0.0}};
+
+  using at = math::kFaceData<3, 1>::axes_type;
+  std::vector<math::EdgeIndex<3>> const expected_edges{
+      math::kFaceData<3, 1>{at{1}, 2},
+      math::kFaceData<3, 1>{at{4}, 2},
+      math::kFaceData<3, 1>{at{2}, 4},
+      math::kFaceData<3, 1>{at{1}, 4},
+      math::kFaceData<3, 1>{at{4}, 1},
+      math::kFaceData<3, 1>{at{2}, 1}};
+
+  math::Hyperblock<3>::IntersectionPoints const expected = create_expected(expected_points, expected_edges);
 
   auto const intersections = block.intersection_points(plane);
-  require_same_points(intersections, expected, "diagonal_slice_test intersections");
+  require_same_intersections<3>(intersections, expected, "diagonal_slice_test intersections");
 }
 
 void disjoint_plane_test()
@@ -317,10 +370,10 @@ void vertex_touching_test()
   math::Hyperplane<3> const plane = make_plane<3>({1.0, 1.0, 1.0}, {0.0, 0.0, 0.0});
 
   // An in-plane corner is considered to not cause any intersections if the plane is only touching.
-  std::vector<vector_type<3>> const expected{};
+  math::Hyperblock<3>::IntersectionPoints const expected{};
 
   auto const intersections = block.intersection_points(plane);
-  require_same_points(intersections, expected, "vertex_touching_test intersections");
+  require_same_intersections<3>(intersections, expected, "vertex_touching_test intersections");
 }
 
 void general_reference_test()
@@ -374,7 +427,7 @@ void general_reference_test()
     math::Hyperplane<3> const plane = make_plane<3>(planes[i].normal, planes[i].point);
     auto const intersections = block.intersection_points(plane);
     auto const expected = reference_intersections<3>(c1, c2, plane);
-    require_same_points(intersections, expected, "general_reference_test plane=" + std::to_string(i));
+    require_same_intersections<3>(intersections, expected, "general_reference_test plane=" + std::to_string(i));
   }
 }
 
@@ -401,4 +454,3 @@ int main()
   std::cout << "Hyperblock tests passed" << std::endl;
   return 0;
 }
-
