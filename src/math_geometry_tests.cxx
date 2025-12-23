@@ -525,6 +525,8 @@ void test_direction(std::string const& test_description)
                           kTolerance,
                           test_description,
                           "constructor from line");
+  require_components_equal(line.point(), {line_point_x, line_point_y, line_point_z}, test_description, "point() accessor");
+  require_components_equal(line.direction(), {from_point_only_x, from_point_only_y, from_point_only_z}, test_description, "direction() accessor");
 
   //---------------------------------------------------------------------------
   // Dot product.
