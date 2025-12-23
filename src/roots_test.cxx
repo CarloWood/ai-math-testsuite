@@ -55,6 +55,9 @@ void test_cubic(math::CubicPolynomial<double> const& poly, double root1, double 
     double expected_first = left_most_first ? std::min(root1, root2) : (poly[3] < 0 ? std::min(root1, root2) : std::max(root1, root2));
     double expected_second = left_most_first ? std::max(root1, root2) : (poly[3] < 0 ? std::max(root1, root2) : std::min(root1, root2));
 
+    if (num_extrema == 1)
+      extrema[1] = extrema[0];  // extrema[1] might have been uninitialized in this case.
+
     if (std::abs(extrema[0] * extrema[1] - root1 * root2) > 1e-6 || std::abs(extrema[0] + extrema[1] - (root1 + root2)) > 1e-6)
     {
       DoutFatal(dc::core, "Incorrect roots!");
