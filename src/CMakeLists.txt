@@ -19,6 +19,9 @@ target_link_libraries(math_hyperplane_tests ${AICXX_OBJECTS_LIST})
 add_executable(math_hyperblock_tests math_hyperblock_tests.cxx)
 target_link_libraries(math_hyperblock_tests ${AICXX_OBJECTS_LIST})
 
+add_executable(linear_algebra_test linear_algebra_test.cxx)
+target_link_libraries(linear_algebra_test ${AICXX_OBJECTS_LIST})
+
 add_executable(roots_test roots_test.cxx)
 target_link_libraries(roots_test ${AICXX_OBJECTS_LIST})
 
