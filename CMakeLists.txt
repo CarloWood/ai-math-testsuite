@@ -40,3 +40,5 @@ find_package(Boost CONFIG COMPONENTS filesystem)
 include(AICxxSubmodules)
 
 add_subdirectory(src)
+# We use utils/to_string.h
+add_subdirectory(enchantum)

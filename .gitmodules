@@ -25,3 +25,6 @@
 [submodule "src/mpreal"]
 	path = src/mpreal
 	url = https://github.com/advanpix/mpreal.git
+[submodule "enchantum"]
+	path = enchantum
+	url = https://github.com/ZXShady/enchantum.git

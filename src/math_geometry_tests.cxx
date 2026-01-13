@@ -556,31 +556,31 @@ void test_direction(std::string const& test_description)
                             "constructor from angle");
 
     //-------------------------------------------------------------------------
-    // normal().
-    Direction const normal = from_angle.normal();
+    // rotate_90_degrees().
+    Direction const normal = from_angle.rotate_90_degrees();
     require_components_near(normal,
                             {-sin_angle, cos_angle, zero},
                             kTolerance,
                             test_description,
-                            "normal()");
+                            "rotate_90_degrees()");
 
     //-------------------------------------------------------------------------
-    // inverse().
-    Direction const inverse = from_angle.inverse();
-    require_components_near(inverse,
+    // rotate_180_degrees().
+    Direction const negation = from_angle.rotate_180_degrees();
+    require_components_near(negation,
                             {-cos_angle, -sin_angle, zero},
                             kTolerance,
                             test_description,
-                            "inverse()");
+                            "rotate_180_degrees()");
 
     //-------------------------------------------------------------------------
-    // normal_inverse().
-    Direction const normal_inverse = from_angle.normal_inverse();
-    require_components_near(normal_inverse,
+    // rotate_270_degrees().
+    Direction const negated_normal = from_angle.rotate_270_degrees();
+    require_components_near(negated_normal,
                             {sin_angle, -cos_angle, zero},
                             kTolerance,
                             test_description,
-                            "normal_inverse()");
+                            "rotate_270_degrees()");
 
     //-------------------------------------------------------------------------
     // dot().
