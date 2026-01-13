@@ -403,9 +403,9 @@ void test_vector(std::string test_description)
   // Rotations (2D only).
   if constexpr (N == 2)
   {
-    require_components_near(v.rotate_90_degrees(), {-new_y, new_x}, kTolerance, test_description, "rotate_90_degrees");
-    require_components_near(v.rotate_180_degrees(), {-new_x, -new_y}, kTolerance, test_description, "rotate_180_degrees");
-    require_components_near(v.rotate_270_degrees(), {new_y, -new_x}, kTolerance, test_description, "rotate_270_degrees");
+    require_components_near(v.rotated_90_degrees(), {-new_y, new_x}, kTolerance, test_description, "rotated_90_degrees");
+    require_components_near(v.rotated_180_degrees(), {-new_x, -new_y}, kTolerance, test_description, "rotated_180_degrees");
+    require_components_near(v.rotated_270_degrees(), {new_y, -new_x}, kTolerance, test_description, "rotated_270_degrees");
   }
 
   // Compound assignment operators.
@@ -556,31 +556,31 @@ void test_direction(std::string const& test_description)
                             "constructor from angle");
 
     //-------------------------------------------------------------------------
-    // rotate_90_degrees().
-    Direction const normal = from_angle.rotate_90_degrees();
+    // rotated_90_degrees().
+    Direction const normal = from_angle.rotated_90_degrees();
     require_components_near(normal,
                             {-sin_angle, cos_angle, zero},
                             kTolerance,
                             test_description,
-                            "rotate_90_degrees()");
+                            "rotated_90_degrees()");
 
     //-------------------------------------------------------------------------
-    // rotate_180_degrees().
-    Direction const negation = from_angle.rotate_180_degrees();
+    // rotated_180_degrees().
+    Direction const negation = from_angle.rotated_180_degrees();
     require_components_near(negation,
                             {-cos_angle, -sin_angle, zero},
                             kTolerance,
                             test_description,
-                            "rotate_180_degrees()");
+                            "rotated_180_degrees()");
 
     //-------------------------------------------------------------------------
-    // rotate_270_degrees().
-    Direction const negated_normal = from_angle.rotate_270_degrees();
+    // rotated_270_degrees().
+    Direction const negated_normal = from_angle.rotated_270_degrees();
     require_components_near(negated_normal,
                             {sin_angle, -cos_angle, zero},
                             kTolerance,
                             test_description,
-                            "rotate_270_degrees()");
+                            "rotated_270_degrees()");
 
     //-------------------------------------------------------------------------
     // dot().

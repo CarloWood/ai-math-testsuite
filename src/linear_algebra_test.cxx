@@ -254,9 +254,9 @@ void test_vector_ops_math()
   require_near(v.dot(w), 11.0, "Vector dot");
   require_near(v.cross(w), 2.0, "Vector cross (2D)");
 
-  require_vector_near<2>(v.rotate_90_degrees(), {-4.0, 3.0}, "Vector rotate_90_degrees");
-  require_vector_near<2>(v.rotate_180_degrees(), {-3.0, -4.0}, "Vector rotate_180_degrees");
-  require_vector_near<2>(v.rotate_270_degrees(), {4.0, -3.0}, "Vector rotate_270_degrees");
+  require_vector_near<2>(v.rotated_90_degrees(), {-4.0, 3.0}, "Vector rotated_90_degrees");
+  require_vector_near<2>(v.rotated_180_degrees(), {-3.0, -4.0}, "Vector rotated_180_degrees");
+  require_vector_near<2>(v.rotated_270_degrees(), {4.0, -3.0}, "Vector rotated_270_degrees");
 
   {
     auto u = v;
@@ -309,7 +309,7 @@ void test_vector_ops_wrapped()
   require_near(v.dot(w), 11.0, "WrappedVector dot");
   require_near(v.cross(w), 2.0, "WrappedVector cross (2D)");
 
-  require_vector_near<2>(v.rotate_90_degrees(), {-4.0, 3.0}, "WrappedVector rotate_90_degrees");
+  require_vector_near<2>(v.rotated_90_degrees(), {-4.0, 3.0}, "WrappedVector rotated_90_degrees");
 
   {
     auto u = v;
