@@ -28,3 +28,9 @@
 [submodule "enchantum"]
 	path = enchantum
 	url = https://github.com/ZXShady/enchantum.git
+[submodule "events"]
+	path = events
+	url = https://github.com/CarloWood/events.git
+[submodule "memory"]
+	path = memory
+	url = https://github.com/CarloWood/memory.git
