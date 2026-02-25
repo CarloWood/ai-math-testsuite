@@ -14,3 +14,8 @@ ltmain.sh
 missing
 test-driver
 build-*/
+documentation/
+site/
+.mkdocs_cache/
+.venv/
+__pycache__/

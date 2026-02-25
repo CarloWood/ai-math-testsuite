@@ -31,6 +31,8 @@
 [submodule "events"]
 	path = events
 	url = https://github.com/CarloWood/events.git
+	branch = master
 [submodule "memory"]
 	path = memory
 	url = https://github.com/CarloWood/memory.git
+	branch = master

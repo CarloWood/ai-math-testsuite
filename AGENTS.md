@@ -1,4 +1,4 @@
-Paths in this file that start with a '/' are relative to the project root ($REPOBASE).
+Paths in this file that start with a '/' are relative to the project root ($REPOROOT).
 
 ## Project Structure
 
