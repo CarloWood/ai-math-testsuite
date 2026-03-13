@@ -1,6 +1,7 @@
 #include "sys.h"
 #include "utils/square.h"
 #include "cairowindow/QuickGraph.h"
+#include "cairowindow/Direction.h"
 #include "math/CubicPolynomial.h"
 #include "math/bracket_zero.h"
 #include "mpreal/mpreal.h"

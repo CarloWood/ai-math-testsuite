@@ -1,5 +1,6 @@
 #include "sys.h"
 #include "cairowindow/QuickGraph.h"
+#include "cairowindow/Direction.h"
 #include "math/CubicPolynomial.h"
 #include "math/bracket_zero.h"
 #include <random>
