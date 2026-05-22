@@ -1,5 +1,6 @@
 #include "sys.h"
 #include <iostream>
+#include <iomanip>
 #include "utils/square.h"
 #include "utils/popcount.h"
 #include "math/subsuper_string.h"
