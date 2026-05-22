@@ -133,8 +133,8 @@ typename math::Hyperblock<N>::IntersectionPoints reference_intersections(vector_
   using intersection_point_type = typename intersection_points_type::value_type;
   using IntersectionPointIndex = typename intersection_points_type::index_type;
 
-  utils::VectorIndex<math::kFaceData<N, 1>> const edge_begin{0};
-  utils::VectorIndex<math::kFaceData<N, 1>> const edge_end{math::EdgeIndex<N>::size};
+  utils::VectorIndex<math::kFaceIndexCategory<N, 1>> const edge_begin{0};
+  utils::VectorIndex<math::kFaceIndexCategory<N, 1>> const edge_end{math::EdgeIndex<N>::size};
   intersection_points_type expected;
   for (auto i = edge_begin; i != edge_end; ++i)
   {
